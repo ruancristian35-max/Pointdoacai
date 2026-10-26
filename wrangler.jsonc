@@ -4,6 +4,7 @@
   "name": "pointdoacai",
   "main": "./worker.js",
   "compatibility_date": "2026-10-26",
+  "keep_vars": true,
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS"
