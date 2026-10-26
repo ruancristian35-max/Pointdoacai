@@ -1,0 +1,10 @@
+
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pointdoacai",
+  "compatibility_date": "2026-10-26",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS"
+  }
+}
