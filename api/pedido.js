@@ -1,0 +1,2 @@
+import {db,respond} from './_shared.js';
+export default async function handler(req,res){if(req.method!=='GET')return respond(res,405,{error:'Método não permitido'});const id=req.query?.id;if(typeof id!=='string'||!/^[0-9a-f-]{36}$/i.test(id))return respond(res,400,{error:'Identificador inválido'});try{const rows=await db(`orders?id=eq.${encodeURIComponent(id)}&select=id,status,total_cents,created_at`);if(!rows.length)return respond(res,404,{error:'Pedido não encontrado'});return respond(res,200,rows[0]);}catch{return respond(res,503,{error:'Consulta indisponível'});}}
