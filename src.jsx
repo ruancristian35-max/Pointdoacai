@@ -100,6 +100,117 @@ function AvisosPromocionais({ ocultar }) {
   );
 }
 function App() {
+function BoasVindasCidade() {
+  const [cidade, setCidade] = React.useState('');
+  const [etapa, setEtapa] = React.useState(() =>
+    sessionStorage.getItem('pointdoacai_cidade')
+      ? 'concluido'
+      : 'cidade'
+  );
+
+  function continuar(e) {
+    e.preventDefault();
+
+    const nome = cidade.trim();
+
+    if (nome.length < 2 || nome.length > 80) return;
+
+    sessionStorage.setItem('pointdoacai_cidade', nome);
+    setEtapa('mensagem');
+  }
+
+  if (etapa === 'concluido') return null;
+
+  const painel = {
+    background: '#fff',
+    borderRadius: 22,
+    padding: 28,
+    width: 'min(420px, 92vw)',
+    textAlign: 'center',
+    boxShadow: '0 20px 60px rgba(0,0,0,.22)'
+  };
+
+  const botao = {
+    width: '100%',
+    padding: 15,
+    background: '#612085',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 12,
+    cursor: 'pointer',
+    fontWeight: 700,
+    marginTop: 14
+  };
+
+  return (
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(35, 10, 50, .8)',
+      zIndex: 99999,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center'
+    }}>
+      <div style={painel}>
+        {etapa === 'cidade' ? (
+          <>
+            <div style={{ fontSize: 38 }}>🍇</div>
+            <h2>Bem-vindo ao Point do Açaí!</h2>
+            <p>Qual é a sua cidade?</p>
+
+            <form onSubmit={continuar}>
+              <input
+                type="text"
+                required
+                minLength={2}
+                maxLength={80}
+                placeholder="Digite sua cidade"
+                value={cidade}
+                onChange={e => setCidade(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: 14,
+                  borderRadius: 10,
+                  border: '1px solid #ddd',
+                  boxSizing: 'border-box'
+                }}
+              />
+
+              <button style={botao} type="submit">
+                Continuar
+              </button>
+            </form>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: 42 }}>💜</div>
+            <h2>Que bom ter você por aqui!</h2>
+
+            <p>
+              Confira nossas promoções e aproveite
+              a entrega grátis por tempo limitado!
+            </p>
+
+            <p style={{ fontSize: 13, color: '#777' }}>
+              Consulte a disponibilidade de entrega
+              para {cidade}.
+            </p>
+
+            <button
+              style={botao}
+              type="button"
+              onClick={() => setEtapa('concluido')}
+            >
+              Ver cardápio
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
     const [cat, setCat] = useState('Todos'), [cart, setCart] = useState([]), [open, setOpen] = useState(false), [checkout, setCheckout] = useState(false), [selected, setSelected] = useState(null), [chosen, setChosen] = useState([]), [qty, setQty] = useState(1), [form, setForm] = useState({ name: '', phone: '', email: '', cpf: '', address: '', delivery: 'Entrega', payment: 'Pix' }), [notice, setNotice] = useState(''), [pix, setPix] = useState(null), [receipt, setReceipt] = useState(null), [submitting, setSubmitting] = useState(false), [blocked, setBlocked] = useState(false), [copied, setCopied] = useState(false), requestLock = useRef(false);
     const total = cart.reduce((a, i) => a + i.price * i.qty, 0), count = cart.reduce((a, i) => a + i.qty, 0);
     function add() { const price = selected.price + chosen.reduce((a, e) => a + e[1], 0); setCart(c => [...c, { key: Date.now() + Math.random(), name: selected.name, extras: chosen.map(e => e[0]), price, qty }]); setSelected(null); setChosen([]); setQty(1); setNotice('Produto adicionado ao carrinho!'); setTimeout(() => setNotice(''), 2500); }
@@ -187,7 +298,7 @@ function App() {
         setNotice('');
         setForm({ name: '', phone: '', email: '', cpf: '', address: '', delivery: 'Entrega', payment: 'Pix' });
     }
-return <><AvisosPromocionais ocultar={open || !!selected} /><header><div className="nav wrap"><a className="logo" href="#inicio"><span>🍇</span><span>POINT DO <b>AÇAÍ</b><small>SEU MOMENTO MAIS GOSTOSO</small></span></a><nav><a href="#cardapio">Cardápio</a><a href="#promocoes">Promoções</a><a href="#sobre">Sobre nós</a></nav><button className="cartbtn" onClick={() => setOpen(true)}><ShoppingBag size={19}/> Meu pedido <i>{count}</i></button></div></header><main id="inicio"><section className="hero"><div className="wrap hero-grid"><div><span className="eyebrow">💜 O SABOR QUE CONQUISTA</span><h1>Seu dia fica<br />melhor com <em>açaí!</em></h1><p>O açaí mais cremoso, com seus complementos favoritos. Monte do seu jeito e aproveite cada colherada!</p><div className="hero-actions"><a className="primary" href="#cardapio">Ver cardápio <span>↗</span></a><a className="secondary" href="#promocoes">🔥 Ver promoções</a></div><div className="benefits"><span>✓ Feito com carinho</span><span>✓ Combos especiais</span><span>✓ Peça online</span></div></div><div className="hero-art"><div className="glow"></div><div className="cup">🍧</div><div className="floating top">✨ 100% sabor</div><div className="floating bottom">💜 Feito pra você!</div></div></div></section><section className="perks wrap"><div>🚀 <span><b>Pedido fácil</b><small>Direto pelo site</small></span></div><div>🥣 <span><b>Açaí cremoso</b><small>Do jeitinho que você gosta</small></span></div><div>🎁 <span><b>Ofertas especiais</b><small>Economize nos combos</small></span></div></section><section className="wrap" aria-label="Promoção de entrega grátis"><div style={{ margin: '18px 0 8px', padding: '18px 22px', background: 'linear-gradient(110deg, #461270, #9234ad)', borderRadius: 16, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', boxShadow: '0 8px 28px rgba(70, 18, 112, 0.16)' }}><strong style={{ fontSize: '1.22rem' }}>🚚 ENTREGA GRÁTIS!</strong><span style={{ fontWeight: 600 }}>Promoção por tempo limitado · Peça seu açaí sem pagar frete</span></div></section><section className="wrap section" id="promocoes"><div className="section-head"><div><span className="kicker">OFERTAS IMPERDÍVEIS</span><h2>Promoções que dão <em>água na boca</em> 🔥</h2></div></div><div className="promo-grid"><div className="promo p1"><span>OFERTA DA CASA</span><h3>Combo Casal</h3><p>Dois açaís para compartilhar!</p><strong>{money(39.9)}</strong><button onClick={() => { setSelected(products[3]); document.getElementById('cardapio').scrollIntoView({ behavior: 'smooth' }); }}>Quero aproveitar ↗</button><span className="promo-emoji">💜</span></div><div className="promo p2"><span>MAIS PEDIDO</span><h3>Açaí Especial</h3><p>500 ml de pura felicidade</p><strong>{money(21.9)}</strong><button onClick={() => setSelected(products[1])}>Pedir agora ↗</button><span className="promo-emoji">🍓</span></div></div></section><section className="menu-section" id="cardapio"><div className="wrap section"><div className="section-head"><div><span className="kicker">ESCOLHA O SEU FAVORITO</span><h2>Nosso <em>cardápio</em> 🥣</h2><p>Sabores especiais preparados para você.</p></div></div><div className="filters">{['Todos', 'Açaís', 'Combos', 'Bebidas'].map(c => <button key={c} className={cat === c ? 'active' : ''} onClick={() => setCat(c)}>{c}</button>)}</div><div className="products">{products.filter(p => cat === 'Todos' || p.cat === cat).map(p => <article className="product" key={p.id}><div className="product-art"><img src={p.image} alt={`Foto ilustrativa de ${p.name}`} loading="lazy" decoding="async" style={{maxWidth:'90%',maxHeight:'95%',width:'auto',height:'auto',objectFit:'contain',filter:'drop-shadow(0 8px 8px rgba(61, 16, 78, 0.16))'}}/>{p.old && <b className="discount">OFERTA</b>}</div><div className="product-info"><span className="size">{p.size}</span><h3>{p.name}</h3><p>{p.desc}</p><div className="price-line"><div>{p.old && <del>{money(p.old)}</del>}<strong>{money(p.price)}</strong></div><button aria-label={'Adicionar ' + p.name} onClick={() => setSelected(p)}><Plus /></button></div></div></article>)}</div><p className="disclaimer">* Cardápio e valores ilustrativos. Atualize os produtos e preços antes de publicar a loja.</p></div></section><section id="sobre" className="about wrap"><div><span className="kicker">SOBRE NÓS</span><h2>Uma paixão chamada <em>açaí!</em></h2><p>No Point do Açaí, cada pedido é uma oportunidade de deixar seu dia mais gostoso. Escolha seus sabores, personalize e faça seu pedido em poucos cliques.</p></div><div className="about-icon">🍇💜</div></section></main><footer><div className="wrap foot"><div className="logo"><span>🍇</span><span>POINT DO <b>AÇAÍ</b></span></div><p>Seu ponto favorito de sabor 💜</p><small>© 2026 Point do Açaí. Todos os direitos reservados.</small></div></footer>{notice && <div className="toast">{notice}</div>}{selected && <div className="overlay" onClick={() => setSelected(null)}><div className="modal" onClick={e => e.stopPropagation()}><button className="close" onClick={() => setSelected(null)}><X /></button><div className="modal-emoji" style={{padding:12}}><img src={selected.image} alt={`Foto ilustrativa de ${selected.name}`} style={{display:'block',width:'100%',height:190,objectFit:'contain',margin:'0 auto'}}/></div><h2>{selected.name}</h2><p>{selected.desc}</p><h3>Personalize seu açaí</h3><div className="extra-list">{extras.map(ex => <label key={ex[0]}><input type="checkbox" checked={chosen.some(x => x[0] === ex[0])} onChange={e => setChosen(c => e.target.checked ? [...c, ex] : c.filter(x => x[0] !== ex[0]))}/>{ex[0]} <b>+ {money(ex[1])}</b></label>)}</div><div className="modal-bottom"><div className="counter"><button onClick={() => setQty(Math.max(1, qty - 1))}><Minus size={16}/></button>{qty}<button onClick={() => setQty(qty + 1)}><Plus size={16}/></button></div><button className="primary" onClick={add}>Adicionar {money((selected.price + chosen.reduce((a, e) => a + e[1], 0)) * qty)}</button></div></div></div>}{open && <div className="overlay" onClick={() => setOpen(false)}><aside className="drawer" onClick={e => e.stopPropagation()}><div className="drawer-head"><h2><ShoppingBag /> Meu pedido</h2><button onClick={() => { setOpen(false); setCheckout(false); }}><X /></button></div>{pix ? <div className="checkout" style={{ display: 'grid', gap: 14 }}>
+return <><BoasVindasCidade /><AvisosPromocionais ocultar={open || !!selected} /><header><div className="nav wrap"><a className="logo" href="#inicio"><span>🍇</span><span>POINT DO <b>AÇAÍ</b><small>SEU MOMENTO MAIS GOSTOSO</small></span></a><nav><a href="#cardapio">Cardápio</a><a href="#promocoes">Promoções</a><a href="#sobre">Sobre nós</a></nav><button className="cartbtn" onClick={() => setOpen(true)}><ShoppingBag size={19}/> Meu pedido <i>{count}</i></button></div></header><main id="inicio"><section className="hero"><div className="wrap hero-grid"><div><span className="eyebrow">💜 O SABOR QUE CONQUISTA</span><h1>Seu dia fica<br />melhor com <em>açaí!</em></h1><p>O açaí mais cremoso, com seus complementos favoritos. Monte do seu jeito e aproveite cada colherada!</p><div className="hero-actions"><a className="primary" href="#cardapio">Ver cardápio <span>↗</span></a><a className="secondary" href="#promocoes">🔥 Ver promoções</a></div><div className="benefits"><span>✓ Feito com carinho</span><span>✓ Combos especiais</span><span>✓ Peça online</span></div></div><div className="hero-art"><div className="glow"></div><div className="cup">🍧</div><div className="floating top">✨ 100% sabor</div><div className="floating bottom">💜 Feito pra você!</div></div></div></section><section className="perks wrap"><div>🚀 <span><b>Pedido fácil</b><small>Direto pelo site</small></span></div><div>🥣 <span><b>Açaí cremoso</b><small>Do jeitinho que você gosta</small></span></div><div>🎁 <span><b>Ofertas especiais</b><small>Economize nos combos</small></span></div></section><section className="wrap" aria-label="Promoção de entrega grátis"><div style={{ margin: '18px 0 8px', padding: '18px 22px', background: 'linear-gradient(110deg, #461270, #9234ad)', borderRadius: 16, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', boxShadow: '0 8px 28px rgba(70, 18, 112, 0.16)' }}><strong style={{ fontSize: '1.22rem' }}>🚚 ENTREGA GRÁTIS!</strong><span style={{ fontWeight: 600 }}>Promoção por tempo limitado · Peça seu açaí sem pagar frete</span></div></section><section className="wrap section" id="promocoes"><div className="section-head"><div><span className="kicker">OFERTAS IMPERDÍVEIS</span><h2>Promoções que dão <em>água na boca</em> 🔥</h2></div></div><div className="promo-grid"><div className="promo p1"><span>OFERTA DA CASA</span><h3>Combo Casal</h3><p>Dois açaís para compartilhar!</p><strong>{money(39.9)}</strong><button onClick={() => { setSelected(products[3]); document.getElementById('cardapio').scrollIntoView({ behavior: 'smooth' }); }}>Quero aproveitar ↗</button><span className="promo-emoji">💜</span></div><div className="promo p2"><span>MAIS PEDIDO</span><h3>Açaí Especial</h3><p>500 ml de pura felicidade</p><strong>{money(21.9)}</strong><button onClick={() => setSelected(products[1])}>Pedir agora ↗</button><span className="promo-emoji">🍓</span></div></div></section><section className="menu-section" id="cardapio"><div className="wrap section"><div className="section-head"><div><span className="kicker">ESCOLHA O SEU FAVORITO</span><h2>Nosso <em>cardápio</em> 🥣</h2><p>Sabores especiais preparados para você.</p></div></div><div className="filters">{['Todos', 'Açaís', 'Combos', 'Bebidas'].map(c => <button key={c} className={cat === c ? 'active' : ''} onClick={() => setCat(c)}>{c}</button>)}</div><div className="products">{products.filter(p => cat === 'Todos' || p.cat === cat).map(p => <article className="product" key={p.id}><div className="product-art"><img src={p.image} alt={`Foto ilustrativa de ${p.name}`} loading="lazy" decoding="async" style={{maxWidth:'90%',maxHeight:'95%',width:'auto',height:'auto',objectFit:'contain',filter:'drop-shadow(0 8px 8px rgba(61, 16, 78, 0.16))'}}/>{p.old && <b className="discount">OFERTA</b>}</div><div className="product-info"><span className="size">{p.size}</span><h3>{p.name}</h3><p>{p.desc}</p><div className="price-line"><div>{p.old && <del>{money(p.old)}</del>}<strong>{money(p.price)}</strong></div><button aria-label={'Adicionar ' + p.name} onClick={() => setSelected(p)}><Plus /></button></div></div></article>)}</div><p className="disclaimer">* Cardápio e valores ilustrativos. Atualize os produtos e preços antes de publicar a loja.</p></div></section><section id="sobre" className="about wrap"><div><span className="kicker">SOBRE NÓS</span><h2>Uma paixão chamada <em>açaí!</em></h2><p>No Point do Açaí, cada pedido é uma oportunidade de deixar seu dia mais gostoso. Escolha seus sabores, personalize e faça seu pedido em poucos cliques.</p></div><div className="about-icon">🍇💜</div></section></main><footer><div className="wrap foot"><div className="logo"><span>🍇</span><span>POINT DO <b>AÇAÍ</b></span></div><p>Seu ponto favorito de sabor 💜</p><small>© 2026 Point do Açaí. Todos os direitos reservados.</small></div></footer>{notice && <div className="toast">{notice}</div>}{selected && <div className="overlay" onClick={() => setSelected(null)}><div className="modal" onClick={e => e.stopPropagation()}><button className="close" onClick={() => setSelected(null)}><X /></button><div className="modal-emoji" style={{padding:12}}><img src={selected.image} alt={`Foto ilustrativa de ${selected.name}`} style={{display:'block',width:'100%',height:190,objectFit:'contain',margin:'0 auto'}}/></div><h2>{selected.name}</h2><p>{selected.desc}</p><h3>Personalize seu açaí</h3><div className="extra-list">{extras.map(ex => <label key={ex[0]}><input type="checkbox" checked={chosen.some(x => x[0] === ex[0])} onChange={e => setChosen(c => e.target.checked ? [...c, ex] : c.filter(x => x[0] !== ex[0]))}/>{ex[0]} <b>+ {money(ex[1])}</b></label>)}</div><div className="modal-bottom"><div className="counter"><button onClick={() => setQty(Math.max(1, qty - 1))}><Minus size={16}/></button>{qty}<button onClick={() => setQty(qty + 1)}><Plus size={16}/></button></div><button className="primary" onClick={add}>Adicionar {money((selected.price + chosen.reduce((a, e) => a + e[1], 0)) * qty)}</button></div></div></div>}{open && <div className="overlay" onClick={() => setOpen(false)}><aside className="drawer" onClick={e => e.stopPropagation()}><div className="drawer-head"><h2><ShoppingBag /> Meu pedido</h2><button onClick={() => { setOpen(false); setCheckout(false); }}><X /></button></div>{pix ? <div className="checkout" style={{ display: 'grid', gap: 14 }}>
             <h3>Pagamento via Pix</h3>
             <p><b>Pedido:</b> {pix.orderId}</p>
             <p><b>Valor:</b> {money(pix.amount)}</p><p style={{ color: '#25834b', fontWeight: 700 }}>🚚 Entrega grátis promocional incluída.</p>
