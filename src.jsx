@@ -18,12 +18,19 @@ function App() {
         requestLock.current = true;
         setSubmitting(true);
         setNotice('');
-        try {
+        try {const chave = "pointdoacai_checkout_request_id";
+let checkoutRequestId = sessionStorage.getItem(chave);
+
+if (!checkoutRequestId) {
+  checkoutRequestId = crypto.randomUUID();
+  sessionStorage.setItem(chave, checkoutRequestId);
+}
             const r = await fetch('/api/checkout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    customer: form,
+    checkout_request_id: checkoutRequestId,
+    customer: form,
                     items: cart.map(({ name, extras, qty }) => ({ name, extras, qty }))
                 })
             });
@@ -75,7 +82,7 @@ function App() {
             setNotice('Não foi possível copiar automaticamente. Selecione o código e copie manualmente.');
         }
     }
-    function novoPedido() {
+    function novoPedido() {sessionStorage.removeItem("pointdoacai_checkout_request_id");
         setPix(null);
         setReceipt(null);
         setBlocked(false);
