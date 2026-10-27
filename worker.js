@@ -426,9 +426,10 @@ function safeEqual(a, b) {
   return diff === 0;
 }
 
+
 async function webhook(request, env) {
   if (request.method !== "POST") {
-    return json({ error: "Método não permitido." }, 405);
+    return json({ error: "Método não permitido" }, 405);
   }
 
   if (
@@ -438,25 +439,26 @@ async function webhook(request, env) {
       env.SUNIZE_API_SECRET
     )
   ) {
-    return json({ error: "Não autorizado." }, 401);
+    return json({ error: "Não autorizado" }, 401);
   }
 
   let hook;
 
   try {
     const raw = await request.text();
-
     if (raw.length > 16000) {
-      return json({ error: "Evento muito grande." }, 413);
+      return json({ error: "Evento muito grande" }, 413);
     }
-
     hook = JSON.parse(raw);
   } catch {
-    return json({ error: "JSON inválido." }, 400);
+    return json({ error: "Evento inválido" }, 400);
   }
 
-  if (!hook?.id || !hook?.external_id) {
-    return json({ error: "Evento incompleto." }, 400);
+  if (
+    typeof hook?.id !== "string" ||
+    typeof hook?.external_id !== "string"
+  ) {
+    return json({ error: "Evento incompleto" }, 400);
   }
 
   try {
@@ -467,17 +469,13 @@ async function webhook(request, env) {
       "&select=id,total_cents,status"
     );
 
-    if (
-      !Array.isArray(rows) ||
-      rows.length !== 1
-    ) {
-      return json(
-        { error: "Transação não associada." },
-        404
-      );
+    if (!Array.isArray(rows) || rows.length !== 1) {
+      return json({ error: "Transação não associada" }, 404);
     }
 
     const order = rows[0];
+
+    // Confirma o estado diretamente na Sunize.
     const verified = await sunizeGet(env, hook.id);
 
     if (
@@ -487,50 +485,73 @@ async function webhook(request, env) {
       Math.round(Number(verified.amount) * 100) !==
         order.total_cents
     ) {
-      return json(
-        { error: "Divergência na confirmação." },
-        409
-      );
+      return json({ error: "Dados divergentes" }, 409);
     }
 
-    if (verified.status === "AUTHORIZED") {
-      if (order.status === "paid") {
-        return json({ ok: true, duplicate: true });
+    const transitions = {
+      AUTHORIZED: {
+        target: "paid",
+        from: ["awaiting_payment"]
+      },
+      FAILED: {
+        target: "failed",
+        from: ["awaiting_payment", "creating_payment"]
+      },
+      REFUNDED: {
+        target: "refunded",
+        from: ["paid", "in_dispute", "awaiting_payment"]
+      },
+      CHARGEBACK: {
+        target: "chargeback",
+        from: ["paid", "in_dispute", "awaiting_payment"]
+      },
+      IN_DISPUTE: {
+        target: "in_dispute",
+        from: ["paid"]
       }
+    };
 
-      if (order.status !== "awaiting_payment") {
-        return json(
-          { error: "Estado não permite confirmação." },
-          409
-        );
+    if (verified.status === "PENDING") {
+      return json({ ok: true, status: "pending" });
+    }
+
+    const transition = transitions[verified.status];
+
+    if (!transition) {
+      return json({ error: "Status desconhecido" }, 422);
+    }
+
+    if (order.status === transition.target) {
+      return json({ ok: true, duplicate: true });
+    }
+
+    if (!transition.from.includes(order.status)) {
+      // Solicita nova tentativa/reconciliação; não altera
+      // o pedido diante de uma transição inesperada.
+      return json({ error: "Revisão de status necessária" }, 409);
+    }
+
+    const updated = await dbCall(
+      env,
+      `orders?id=eq.${encodeURIComponent(order.id)}` +
+      `&status=eq.${encodeURIComponent(order.status)}`,
+      {
+        method: "PATCH",
+        body: { status: transition.target }
       }
+    );
 
-      await dbCall(
-        env,
-        `orders?id=eq.${encodeURIComponent(order.id)}` +
-        "&status=eq.awaiting_payment",
-        {
-          method: "PATCH",
-          body: { status: "paid" },
-          prefer: "return=minimal"
-        }
-      );
-
-      return json({ ok: true });
+    if (!Array.isArray(updated) || updated.length !== 1) {
+      return json({ error: "Estado mudou; tente novamente" }, 409);
     }
 
     return json({
       ok: true,
-      status: "not_paid"
+      status: transition.target
     });
-
-  } catch (e) {
-    console.error("Webhook:", e.message);
-
-    return json(
-      { error: "Falha na verificação." },
-      503
-    );
+  } catch (error) {
+    console.error("Webhook falhou:", error.message);
+    return json({ error: "Falha na verificação" }, 503);
   }
 }
 
