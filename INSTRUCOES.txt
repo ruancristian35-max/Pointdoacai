@@ -1,0 +1,22 @@
+POINT DO AÇAÍ — ATUALIZAÇÃO DE IMAGENS DOS 6 PRODUTOS
+
+Este pacote foi montado a partir do src.jsx da atualização anterior de entrega grátis.
+Não substitua worker.js, style.css nem package.json nesta etapa.
+
+COMO ENVIAR NO GITHUB:
+1) Abra https://github.com/ruancristian35-max/Pointdoacai
+2) Clique em Add file > Upload files.
+3) Extraia o ZIP no computador. Selecione os 7 arquivos (src.jsx + 6 .webp) e envie todos PARA A RAIZ do repositório (mesmo lugar que package.json e worker.js).
+4) Quando solicitado, confirme a substituição do arquivo src.jsx atual, depois Commit changes na branch main.
+5) Aguarde Cloudflare > pointdoacai > Implantações > Pronto. Atualize o site com Ctrl+F5.
+6) Confira os cards e clique em cada produto para ver a foto também no modal de complementos.
+
+MAPEAMENTO
+- acai-tradicional.webp: Açaí Tradicional (300 ml)
+- acai-especial.webp: Açaí Especial (500 ml)
+- acai-familia.webp: Açaí Família (1 litro)
+- combo-casal.webp: Combo Casal (2 x 500 ml)
+- copo-tropical.webp: Copo Tropical (400 ml)
+- milkshake-acai.webp: Milk-shake de Açaí (400 ml)
+
+NOTA: as fotos são imagens ilustrativas fornecidas pelo proprietário. A opção de Pix real deve continuar desativada enquanto não for validada.
