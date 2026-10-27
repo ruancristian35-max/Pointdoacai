@@ -1,0 +1,24 @@
+POINT DO AÇAÍ — CARDÁPIO COM FOTOS (VERSÃO REVISADA)
+
+ESCOLHA DAS FOTOS
+Açaí Tradicional: foto do copo enviada.
+Açaí Especial: foto com morangos enviada.
+Combo Casal: foto com dois copos enviada.
+Açaí Família (1 litro, R$ 39,90): selecionada a foto do recipiente transparente com banana, kiwi e morango, por mostrar melhor o tamanho e os ingredientes.
+A imagem anterior do Família não será usada e NÃO existe um segundo produto 'Açaí de 1 litro'.
+
+CONTEÚDO
+src.jsx
+public/produtos/acai-tradicional.jpg
+public/produtos/acai-especial.jpg
+public/produtos/acai-familia.jpg
+public/produtos/combo-casal.jpg
+
+COMO INSTALAR
+Envie src.jsx à raiz do repositório GitHub (substituindo o existente).
+Envie as 4 imagens à pasta public/produtos/ (crie pastas se necessário).
+Depois confira o build na Cloudflare.
+
+O Copo Tropical e o Milk-shake de Açaí continuam com emojis enquanto não forem fornecidas fotos.
+Não altere worker.js ou chaves secretas.
+O Pix Sunize deve continuar desativado até completar os testes.
