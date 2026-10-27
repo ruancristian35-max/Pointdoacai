@@ -1,12 +1,12 @@
 // Point do Acai - Cloudflare Worker + Supabase + Sunize API v2
 // Pagamentos reais DESATIVADOS por padrao: SUNIZE_PAYMENTS_ENABLED === 'true'
 const catalog = {
-  'Açaí Tradicional': 1490, 'Açaí Especial': 2190, 'Açaí Família': 3990,
-  'Combo Casal': 3990, 'Copo Tropical': 1990, 'Milk-shake de Açaí': 1790
+  'Açaí Tradicional': 1090, 'Açaí Especial': 1390, 'Açaí Família': 2590,
+  'Combo Casal': 2790, 'Copo Tropical': 890, 'Milk-shake de Açaí': 1190
 };
 const extras = {
-  'Leite em pó': 300, 'Morango': 400, 'Banana': 200, 'Nutella': 600,
-  'Granola': 200, 'Leite condensado': 300
+  'Leite em pó': 0, 'Morango': 0, 'Banana': 0, 'Nutella': 0,
+  'Granola': 0, 'Leite condensado': 0
 };
 const SUNIZE_URL = 'https://api.sunize.com.br/v2/transactions';
 // Frete zerado enquanto a promoção de entrega grátis estiver vigente.
