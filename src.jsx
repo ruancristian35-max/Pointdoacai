@@ -24,12 +24,17 @@ let checkoutRequestId = sessionStorage.getItem(chave);
 if (!checkoutRequestId) {
   checkoutRequestId = crypto.randomUUID();
   sessionStorage.setItem(chave, checkoutRequestId);
+}const chave = "pointdoacai_checkout_request_id";
+let checkoutRequestId = sessionStorage.getItem(chave);
+
+if (!checkoutRequestId) {
+  checkoutRequestId = crypto.randomUUID();
+  sessionStorage.setItem(chave, checkoutRequestId);
 }
             const r = await fetch('/api/checkout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-    checkout_request_id: checkoutRequestId,
+                body: JSON.stringify({checkout_request_id: checkoutRequestId,
     customer: form,
                     items: cart.map(({ name, extras, qty }) => ({ name, extras, qty }))
                 })
