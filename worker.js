@@ -1,6 +1,6 @@
 
  // Point do Acai - Cloudflare Worker + Supabase + Sunize API v2
- // Pagamentos reais DESATIVADOS por padrao: SUNIZE_PAYMENTS_ENABLED === 'true'
+// Pagamentos reais DESATIVADOS por padrao: SUNIZE_PAYMENTS_ENABLED === 'true'
 
 const catalog = {
   'Açaí Tradicional': 1090,
@@ -21,8 +21,6 @@ const extras = {
 };
 
 const SUNIZE_URL = 'https://api.sunize.com.br/v2/transactions';
-
-// Frete grátis promocional.
 const DELIVERY_FEE_CENTS = 0;
 
 function json(value, status = 200) {
@@ -48,9 +46,7 @@ function checkCpf(value) {
 
     const digit = (sum * 10) % 11 % 10;
 
-    if (digit !== Number(cpf[i])) {
-      return null;
-    }
+    if (digit !== Number(cpf[i])) return null;
   }
 
   return cpf;
@@ -95,9 +91,7 @@ function validate(body) {
 
   const cpf = checkCpf(c.cpf);
 
-  if (!cpf) {
-    throw Error('Informe um CPF válido.');
-  }
+  if (!cpf) throw Error('Informe um CPF válido.');
 
   if (
     typeof c.address !== 'string' ||
@@ -207,7 +201,9 @@ async function dbCall(env, suffix, opts = {}) {
     throw Error('Erro ao acessar banco.');
   }
 
-  return opts.prefer === 'return=minimal' ? null : r.json();
+  return opts.prefer === 'return=minimal'
+    ? null
+    : r.json();
 }
 
 function sunizeHeaders(env) {
@@ -249,7 +245,8 @@ async function checkout(request, env) {
   }
 
   if (
-    !request.headers.get('content-type')?.includes('application/json')
+    !request.headers.get('content-type')
+      ?.includes('application/json')
   ) {
     return json({ error: 'Envie JSON.' }, 415);
   }
@@ -277,6 +274,7 @@ async function checkout(request, env) {
     }
 
     data = validate(input);
+
     data.order.checkout_request_id =
       input.checkout_request_id.toLowerCase();
 
@@ -397,7 +395,7 @@ async function checkout(request, env) {
     }, 503);
   }
 
-  // Pagamentos reais continuam desativados.
+  // Pix real desativado até validação.
   if (env.SUNIZE_PAYMENTS_ENABLED !== 'true') {
     return json({
       orderId: order.id,
@@ -407,7 +405,6 @@ async function checkout(request, env) {
   }
 
   try {
-    // Marca o pedido como cobrança em criação.
     const updated = await dbCall(
       env,
       `orders?id=eq.${encodeURIComponent(order.id)}&status=eq.pending_payment`,
@@ -467,8 +464,7 @@ async function checkout(request, env) {
       throw Error('Resposta de cobrança inesperada.');
     }
 
-    // NOVA VERIFICAÇÃO:
-    // Só devolver o Pix quando exatamente um pedido for atualizado.
+    // Confirmar vinculo da cobrança no Supabase.
     const saved = await dbCall(
       env,
       `orders?id=eq.${encodeURIComponent(order.id)}&status=eq.creating_payment`,
@@ -505,8 +501,8 @@ async function checkout(request, env) {
       err.message
     );
 
-    // Não repetir automaticamente.
-    // A Sunize pode ter criado uma cobrança.
+    // Não repetir automaticamente:
+    // talvez a Sunize tenha criado a cobrança.
     return json({
       orderId: order.id,
       status: 'creating_payment',
@@ -541,9 +537,7 @@ function safeEqual(a, b) {
 
 async function webhook(request, env) {
   if (request.method !== 'POST') {
-    return json({
-      error: 'Método não permitido'
-    }, 405);
+    return json({ error: 'Método não permitido' }, 405);
   }
 
   if (
@@ -553,9 +547,7 @@ async function webhook(request, env) {
       env.SUNIZE_API_SECRET
     )
   ) {
-    return json({
-      error: 'Não autorizado'
-    }, 401);
+    return json({ error: 'Não autorizado' }, 401);
   }
 
   let hook;
@@ -564,26 +556,20 @@ async function webhook(request, env) {
     const raw = await request.text();
 
     if (raw.length > 16000) {
-      return json({
-        error: 'Evento muito grande'
-      }, 413);
+      return json({ error: 'Evento muito grande' }, 413);
     }
 
     hook = JSON.parse(raw);
 
   } catch {
-    return json({
-      error: 'Evento inválido'
-    }, 400);
+    return json({ error: 'Evento inválido' }, 400);
   }
 
   if (
     typeof hook?.id !== 'string' ||
     typeof hook?.external_id !== 'string'
   ) {
-    return json({
-      error: 'Evento incompleto'
-    }, 400);
+    return json({ error: 'Evento incompleto' }, 400);
   }
 
   try {
@@ -594,13 +580,8 @@ async function webhook(request, env) {
       '&select=id,total_cents,status'
     );
 
-    if (
-      !Array.isArray(rows) ||
-      rows.length !== 1
-    ) {
-      return json({
-        error: 'Transação não associada'
-      }, 404);
+    if (!Array.isArray(rows) || rows.length !== 1) {
+      return json({ error: 'Transação não associada' }, 404);
     }
 
     const order = rows[0];
@@ -612,9 +593,7 @@ async function webhook(request, env) {
       verified.payment_method !== 'PIX' ||
       Math.round(Number(verified.amount) * 100) !== order.total_cents
     ) {
-      return json({
-        error: 'Dados divergentes'
-      }, 409);
+      return json({ error: 'Dados divergentes' }, 409);
     }
 
     const transitions = {
@@ -622,22 +601,18 @@ async function webhook(request, env) {
         target: 'paid',
         from: ['awaiting_payment']
       },
-
       FAILED: {
         target: 'failed',
         from: ['awaiting_payment', 'creating_payment']
       },
-
       REFUNDED: {
         target: 'refunded',
         from: ['paid', 'in_dispute', 'awaiting_payment']
       },
-
       CHARGEBACK: {
         target: 'chargeback',
         from: ['paid', 'in_dispute', 'awaiting_payment']
       },
-
       IN_DISPUTE: {
         target: 'in_dispute',
         from: ['paid']
@@ -645,25 +620,17 @@ async function webhook(request, env) {
     };
 
     if (verified.status === 'PENDING') {
-      return json({
-        ok: true,
-        status: 'pending'
-      });
+      return json({ ok: true, status: 'pending' });
     }
 
     const transition = transitions[verified.status];
 
     if (!transition) {
-      return json({
-        error: 'Status desconhecido'
-      }, 422);
+      return json({ error: 'Status desconhecido' }, 422);
     }
 
     if (order.status === transition.target) {
-      return json({
-        ok: true,
-        duplicate: true
-      });
+      return json({ ok: true, duplicate: true });
     }
 
     if (!transition.from.includes(order.status)) {
@@ -682,10 +649,7 @@ async function webhook(request, env) {
       }
     );
 
-    if (
-      !Array.isArray(updated) ||
-      updated.length !== 1
-    ) {
+    if (!Array.isArray(updated) || updated.length !== 1) {
       return json({
         error: 'Estado mudou; tente novamente'
       }, 409);
@@ -697,10 +661,7 @@ async function webhook(request, env) {
     });
 
   } catch (error) {
-    console.error(
-      'Webhook falhou:',
-      error.message
-    );
+    console.error('Webhook falhou:', error.message);
 
     return json({
       error: 'Falha na verificação'
@@ -719,8 +680,7 @@ async function consultarStatusPedido(request, env) {
 
   if (
     !id ||
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
--[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
   ) {
     return json({
       error: 'Pedido inválido'
@@ -733,10 +693,7 @@ async function consultarStatusPedido(request, env) {
       `orders?id=eq.${encodeURIComponent(id)}&select=status`
     );
 
-    if (
-      !Array.isArray(rows) ||
-      rows.length !== 1
-    ) {
+    if (!Array.isArray(rows) || rows.length !== 1) {
       return json({
         error: 'Pedido não encontrado'
       }, 404);
