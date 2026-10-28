@@ -39,3 +39,43 @@
     animation: none;
   }
 }
+
+/* POINT DO AÇAÍ — PROMOÇÕES ANIMADAS */
+
+.promo-grid > .promo {
+  transform-origin: center;
+  animation: promoRespira 4s ease-in-out infinite;
+  transition: box-shadow 0.3s ease;
+}
+
+/* Segundo card começa em outro momento */
+.promo-grid > .promo:nth-child(2) {
+  animation-delay: -2s;
+}
+
+@keyframes promoRespira {
+  0%, 45%, 100% {
+    transform: scale(1);
+  }
+
+  15% {
+    transform: scale(1.045);
+  }
+
+  30% {
+    transform: scale(1.015);
+  }
+}
+
+/* Destaque quando o cliente passa o mouse */
+.promo-grid > .promo:hover {
+  animation-play-state: paused;
+  box-shadow: 0 18px 38px rgba(85, 20, 120, 0.28);
+}
+
+/* Respeita quem prefere menos movimento */
+@media (prefers-reduced-motion: reduce) {
+  .promo-grid > .promo {
+    animation: none;
+  }
+}
