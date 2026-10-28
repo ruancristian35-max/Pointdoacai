@@ -211,7 +211,7 @@ function BoasVindasCidade() {
   );
 }
 
-    const [cat, setCat] = useState('Todos'), [cart, setCart] = useState([]), [open, setOpen] = useState(false), [checkout, setCheckout] = useState(false), [selected, setSelected] = useState(null), [chosen, setChosen] = useState([]), [qty, setQty] = useState(1), [form, setForm] = useState({ name: '', phone: '', email: '', cpf: '', address: '', delivery: 'Entrega', payment: 'Pix' }), [notice, setNotice] = useState(''), [pix, setPix] = useState(null), [receipt, setReceipt] = useState(null), [submitting, setSubmitting] = useState(false), [blocked, setBlocked] = useState(false), [copied, setCopied] = useState(false), requestLock = useRef(false);
+    const [cat, setCat] = useState('Todos'), [cart, setCart] = useState([]), [open, setOpen] = useState(false), [checkout, setCheckout] = useState(false), [selected, setSelected] = useState(null), [chosen, setChosen] = useState([]), [qty, setQty] = useState(1), [form, setForm] = useState({ name: '', phone: '', email: '', cpf: '', address: '', delivery: 'Entrega', payment: 'Pix' }), [notice, setNotice] = useState(''), [pix, setPix] = useState(null), [pixErro, setPixErro] = useState(''), [receipt, setReceipt] = useState(null), [submitting, setSubmitting] = useState(false), [blocked, setBlocked] = useState(false), [copied, setCopied] = useState(false), requestLock = useRef(false);
     const total = cart.reduce((a, i) => a + i.price * i.qty, 0), count = cart.reduce((a, i) => a + i.qty, 0);
     function add() { const price = selected.price + chosen.reduce((a, e) => a + e[1], 0); setCart(c => [...c, { key: Date.now() + Math.random(), name: selected.name, extras: chosen.map(e => e[0]), price, qty }]); setSelected(null); setChosen([]); setQty(1); setNotice('Produto adicionado ao carrinho!'); setTimeout(() => setNotice(''), 2500); }
     function update(key, d) { setCart(c => c.map(i => i.key === key ? { ...i, qty: i.qty + d } : i).filter(i => i.qty > 0)); }
@@ -252,6 +252,7 @@ function BoasVindasCidade() {
                     status: 'awaiting_payment'
                 });
                 setCopied(false);
+                setPixErro('');
                 setCheckout(false);
                 setOpen(true);
             }
@@ -275,6 +276,57 @@ function BoasVindasCidade() {
             requestLock.current = false;
         }
     }
+    // Atualiza apenas a tela: o pagamento so e confirmado pela API/webhook.
+    React.useEffect(() => {
+        if (!pix?.orderId || ['paid', 'failed', 'cancelled', 'refunded', 'chargeback', 'in_dispute'].includes(pix.status)) {
+            return;
+        }
+
+        let ativo = true;
+        let consultando = false;
+        const controlador = new AbortController();
+
+        async function consultarPagamento() {
+            if (!ativo || consultando) return;
+            consultando = true;
+            try {
+                const resposta = await fetch(
+                    `/api/status-pedido?id=${encodeURIComponent(pix.orderId)}`,
+                    { cache: 'no-store', signal: controlador.signal }
+                );
+                if (!resposta.ok) throw new Error('Consulta indisponivel');
+                const dados = await resposta.json();
+                if (!ativo) return;
+                const permitidos = [
+                    'pending_payment', 'creating_payment', 'awaiting_payment',
+                    'paid', 'failed', 'cancelled', 'refunded', 'chargeback', 'in_dispute'
+                ];
+                if (!permitidos.includes(dados.status)) {
+                    throw new Error('Status desconhecido');
+                }
+                setPix(atual => atual?.orderId === pix.orderId
+                    ? (atual.status === dados.status ? atual : { ...atual, status: dados.status })
+                    : atual
+                );
+                setPixErro('');
+            } catch (erro) {
+                if (ativo && erro.name !== 'AbortError') {
+                    setPixErro('Nao foi possivel verificar o pagamento agora. Aguarde; nao faca outro pedido.');
+                }
+            } finally {
+                consultando = false;
+            }
+        }
+
+        consultarPagamento();
+        const intervalo = setInterval(consultarPagamento, 5000);
+        return () => {
+            ativo = false;
+            clearInterval(intervalo);
+            controlador.abort();
+        };
+    }, [pix?.orderId, pix?.status]);
+
     async function copyPix() {
         if (!pix?.payload)
             return;
@@ -289,6 +341,7 @@ function BoasVindasCidade() {
     function novoPedido() {
         sessionStorage.removeItem("pointdoacai_checkout_request_id");
         setPix(null);
+        setPixErro('');
         setReceipt(null);
         setBlocked(false);
         setCopied(false);
@@ -299,17 +352,40 @@ function BoasVindasCidade() {
         setForm({ name: '', phone: '', email: '', cpf: '', address: '', delivery: 'Entrega', payment: 'Pix' });
     }
 return <><BoasVindasCidade /><AvisosPromocionais ocultar={open || !!selected} /><header><div className="nav wrap"><a className="logo" href="#inicio"><span>🍇</span><span>POINT DO <b>AÇAÍ</b><small>SEU MOMENTO MAIS GOSTOSO</small></span></a><nav><a href="#cardapio">Cardápio</a><a href="#promocoes">Promoções</a><a href="#sobre">Sobre nós</a></nav><button className="cartbtn" onClick={() => setOpen(true)}><ShoppingBag size={19}/> Meu pedido <i>{count}</i></button></div></header><main id="inicio"><section className="hero"><div className="wrap hero-grid"><div><span className="eyebrow">💜 O SABOR QUE CONQUISTA</span><h1>Seu dia fica<br />melhor com <em>açaí!</em></h1><p>O açaí mais cremoso, com seus complementos favoritos. Monte do seu jeito e aproveite cada colherada!</p><div className="hero-actions"><a className="primary" href="#cardapio">Ver cardápio <span>↗</span></a><a className="secondary" href="#promocoes">🔥 Ver promoções</a></div><div className="benefits"><span>✓ Feito com carinho</span><span>✓ Combos especiais</span><span>✓ Peça online</span></div></div><div className="hero-art"><div className="glow"></div><div className="cup">🍧</div><div className="floating top">✨ 100% sabor</div><div className="floating bottom">💜 Feito pra você!</div></div></div></section><section className="perks wrap"><div>🚀 <span><b>Pedido fácil</b><small>Direto pelo site</small></span></div><div>🥣 <span><b>Açaí cremoso</b><small>Do jeitinho que você gosta</small></span></div><div>🎁 <span><b>Ofertas especiais</b><small>Economize nos combos</small></span></div></section><section className="wrap" aria-label="Promoção de entrega grátis"><div style={{ margin: '18px 0 8px', padding: '18px 22px', background: 'linear-gradient(110deg, #461270, #9234ad)', borderRadius: 16, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', boxShadow: '0 8px 28px rgba(70, 18, 112, 0.16)' }}><strong style={{ fontSize: '1.22rem' }}>🚚 ENTREGA GRÁTIS!</strong><span style={{ fontWeight: 600 }}>Promoção por tempo limitado · Peça seu açaí sem pagar frete</span></div></section><section className="wrap section" id="promocoes"><div className="section-head"><div><span className="kicker">OFERTAS IMPERDÍVEIS</span><h2>Promoções que dão <em>água na boca</em> 🔥</h2></div></div><div className="promo-grid"><div className="promo p1"><span>OFERTA DA CASA</span><h3>Combo Casal</h3><p>Dois açaís para compartilhar!</p><strong>{money(20.9)}</strong><button onClick={() => { setSelected(products[3]); document.getElementById('cardapio').scrollIntoView({ behavior: 'smooth' }); }}>Quero aproveitar ↗</button><span className="promo-emoji">💜</span></div><div className="promo p2"><span>MAIS PEDIDO</span><h3>Açaí Especial</h3><p>500 ml de pura felicidade</p><strong>{money(17.9)}</strong><button onClick={() => setSelected(products[1])}>Pedir agora ↗</button><span className="promo-emoji">🍓</span></div></div></section><section className="menu-section" id="cardapio"><div className="wrap section"><div className="section-head"><div><span className="kicker">ESCOLHA O SEU FAVORITO</span><h2>Nosso <em>cardápio</em> 🥣</h2><p>Sabores especiais preparados para você.</p></div></div><div className="filters">{['Todos', 'Açaís', 'Combos', 'Bebidas'].map(c => <button key={c} className={cat === c ? 'active' : ''} onClick={() => setCat(c)}>{c}</button>)}</div><div className="products">{products.filter(p => cat === 'Todos' || p.cat === cat).map(p => <article className="product" key={p.id}><div className="product-art"><img src={p.image} alt={`Foto ilustrativa de ${p.name}`} loading="lazy" decoding="async" style={{maxWidth:'90%',maxHeight:'95%',width:'auto',height:'auto',objectFit:'contain',filter:'drop-shadow(0 8px 8px rgba(61, 16, 78, 0.16))'}}/>{p.old && <b className="discount">OFERTA</b>}</div><div className="product-info"><span className="size">{p.size}</span><h3>{p.name}</h3><p>{p.desc}</p><div className="price-line"><div>{p.old && <del>{money(p.old)}</del>}<strong>{money(p.price)}</strong></div><button aria-label={'Adicionar ' + p.name} onClick={() => setSelected(p)}><Plus /></button></div></div></article>)}</div><p className="disclaimer">* Cardápio e valores ilustrativos. Atualize os produtos e preços antes de publicar a loja.</p></div></section><section id="sobre" className="about wrap"><div><span className="kicker">SOBRE NÓS</span><h2>Uma paixão chamada <em>açaí!</em></h2><p>No Point do Açaí, cada pedido é uma oportunidade de deixar seu dia mais gostoso. Escolha seus sabores, personalize e faça seu pedido em poucos cliques.</p></div><div className="about-icon">🍇💜</div></section></main><footer><div className="wrap foot"><div className="logo"><span>🍇</span><span>POINT DO <b>AÇAÍ</b></span></div><p>Seu ponto favorito de sabor 💜</p><small>© 2026 Point do Açaí. Todos os direitos reservados.</small></div></footer>{notice && <div className="toast">{notice}</div>}{selected && <div className="overlay" onClick={() => setSelected(null)}><div className="modal" onClick={e => e.stopPropagation()}><button className="close" onClick={() => setSelected(null)}><X /></button><div className="modal-emoji" style={{padding:12}}><img src={selected.image} alt={`Foto ilustrativa de ${selected.name}`} style={{display:'block',width:'100%',height:190,objectFit:'contain',margin:'0 auto'}}/></div><h2>{selected.name}</h2><p>{selected.desc}</p><h3>Personalize seu açaí</h3><div className="extra-list">{extras.map(ex => <label key={ex[0]}><input type="checkbox" checked={chosen.some(x => x[0] === ex[0])} onChange={e => setChosen(c => e.target.checked ? [...c, ex] : c.filter(x => x[0] !== ex[0]))}/>{ex[0]} <b style={{ color: '#16803c' }}>GRÁTIS</b></label>)}</div><div className="modal-bottom"><div className="counter"><button onClick={() => setQty(Math.max(1, qty - 1))}><Minus size={16}/></button>{qty}<button onClick={() => setQty(qty + 1)}><Plus size={16}/></button></div><button className="primary" onClick={add}>Adicionar {money((selected.price + chosen.reduce((a, e) => a + e[1], 0)) * qty)}</button></div></div></div>}{open && <div className="overlay" onClick={() => setOpen(false)}><aside className="drawer" onClick={e => e.stopPropagation()}><div className="drawer-head"><h2><ShoppingBag /> Meu pedido</h2><button onClick={() => { setOpen(false); setCheckout(false); }}><X /></button></div>{pix ? <div className="checkout" style={{ display: 'grid', gap: 14 }}>
-            <h3>Pagamento via Pix</h3>
-            <p><b>Pedido:</b> {pix.orderId}</p>
-            <p><b>Valor:</b> {money(pix.amount)}</p><p style={{ color: '#25834b', fontWeight: 700 }}>🚚 Entrega grátis promocional incluída.</p>
-            <div style={{ background: '#fff', padding: 16, borderRadius: 12, display: 'flex', justifyContent: 'center' }}>
-            <QRCodeSVG value={pix.payload} size={210} level="M" marginSize={2}/>
-            </div>
-            <label>Pix Copia e Cola
-            <textarea readOnly rows={4} value={pix.payload} onFocus={e => e.target.select()} style={{ width: '100%', resize: 'vertical', overflowWrap: 'anywhere' }}/>
-            </label>
-            <button className="primary wide" type="button" onClick={copyPix}>{copied ? 'Código copiado!' : 'Copiar código Pix'}</button>
-            <p className="disclaimer">Aguardando confirmação da Sunize. Não utilize outro meio de pagamento e não faça um segundo pedido para pagar novamente. O status ainda não é atualizado automaticamente nesta tela.</p>
+            {pix.status === 'paid' ? (
+                <div role="status" aria-live="polite" style={{ textAlign: 'center', display: 'grid', gap: 12 }}>
+                    <CheckCircle2 size={56} color="#25834b" style={{ margin: '0 auto' }} />
+                    <h3 style={{ color: '#25834b' }}>Pagamento confirmado!</h3>
+                    <p><b>Pedido:</b> {pix.orderId}</p>
+                    <p><b>Valor pago:</b> {money(pix.amount)}</p>
+                    <p>Recebemos a confirmacao do pagamento. Seu pedido seguira para preparacao.</p>
+                    <p style={{ color: '#25834b', fontWeight: 700 }}>🚚 Entrega grátis promocional incluída.</p>
+                    <button type="button" className="primary wide" onClick={novoPedido}>Fazer outro pedido</button>
+                </div>
+            ) : ['failed', 'cancelled', 'refunded', 'chargeback', 'in_dispute'].includes(pix.status) ? (
+                <div role="alert" style={{ display: 'grid', gap: 12 }}>
+                    <h3>Pagamento precisa de atenção</h3>
+                    <p><b>Pedido:</b> {pix.orderId}</p>
+                    <p>Status: {pix.status}. Consulte a loja antes de tentar um novo pagamento.</p>
+                </div>
+            ) : (
+                <>
+                    <h3>Pagamento via Pix</h3>
+                    <p><b>Pedido:</b> {pix.orderId}</p>
+                    <p><b>Valor:</b> {money(pix.amount)}</p>
+                    <p style={{ color: '#25834b', fontWeight: 700 }}>🚚 Entrega grátis promocional incluída.</p>
+                    <div style={{ background: '#fff', padding: 16, borderRadius: 12, display: 'flex', justifyContent: 'center' }}>
+                        <QRCodeSVG value={pix.payload} size={210} level="M" marginSize={2}/>
+                    </div>
+                    <label>Pix Copia e Cola
+                        <textarea readOnly rows={4} value={pix.payload} onFocus={e => e.target.select()} style={{ width: '100%', resize: 'vertical', overflowWrap: 'anywhere' }}/>
+                    </label>
+                    <button className="primary wide" type="button" onClick={copyPix}>{copied ? 'Código copiado!' : 'Copiar código Pix'}</button>
+                    <p role="status" aria-live="polite" style={{ fontWeight: 700 }}>⏳ Aguardando pagamento. Verificação automática a cada 5 segundos.</p>
+                    {pixErro && <p role="alert" style={{ color: '#9a3412' }}>{pixErro}</p>}
+                    <p className="disclaimer">Não gere outro pedido para pagar novamente. A confirmação depende da Sunize e do servidor.</p>
+                </>
+            )}
             </div> : receipt ? <div className="checkout" style={{ display: 'grid', gap: 12 }}>
             <h3>Pedido de teste registrado</h3>
             <p>{receipt.message}</p>
