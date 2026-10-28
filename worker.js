@@ -565,11 +565,12 @@ async function webhook(request, env) {
     return json({ error: 'Evento inválido' }, 400);
   }
 
+ 
   if (
     typeof hook?.id !== 'string' ||
     !/^[\w-]{1,120}$/.test(hook.id) ||
     typeof hook?.external_id !== 'string' ||
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
       hook.external_id
     )
   ) {
