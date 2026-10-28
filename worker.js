@@ -276,11 +276,48 @@ async function webhook(request, env) {
     return json({error: 'Falha na verificação'}, 503);
   }
 }
+async function consultarStatusPedido(request, env) {
+  if (request.method !== 'GET') {
+    return json({ error: 'Método não permitido' }, 405);
+  }
+
+  const id = new URL(request.url).searchParams.get('id');
+
+  if (
+    !id ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+  ) {
+    return json({ error: 'Pedido inválido' }, 400);
+  }
+
+  try {
+    const rows = await dbCall(
+      env,
+      `orders?id=eq.${encodeURIComponent(id)}&select=status`
+    );
+
+    if (!Array.isArray(rows) || rows.length !== 1) {
+      return json({ error: 'Pedido não encontrado' }, 404);
+    }
+
+    return json({
+      status: rows[0].status
+    });
+  } catch (error) {
+    console.error('Consulta de status falhou:', error.message);
+
+    return json({
+      error: 'Não foi possível consultar o pedido'
+    }, 503);
+  }
+}
 export default {
   async fetch(request, env) {
     const path = new URL(request.url).pathname;
     if (path === '/api/teste') return json({sucesso: true, mensagem: 'API Point do Açaí funcionando!'});
     if (path === '/api/checkout') return checkout(request, env);
+    if (path === '/api/status-pedido')
+  return consultarStatusPedido(request, env);
     if (path === '/api/webhook-sunize') return webhook(request, env);
     if (path.startsWith('/api/')) return json({error: 'API não configurada.'}, 404);
     return env.ASSETS.fetch(request);
