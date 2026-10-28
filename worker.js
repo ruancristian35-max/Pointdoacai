@@ -717,6 +717,31 @@ async function webhook(request, env) {
       }, 409);
     }
 
+    // Registra o estado confirmado pela Sunize.
+    // O identificador combina transacao e status
+    // para evitar registros duplicados.
+    try {
+      await dbCall(
+        env,
+        'payment_events?on_conflict=provider,provider_event_id',
+        {
+          method: 'POST',
+          prefer: 'resolution=ignore-duplicates,return=minimal',
+          body: {
+            provider: 'sunize',
+            provider_event_id: `${hook.id}:${verified.status}`,
+            order_id: order.id,
+            event_type: verified.status
+          }
+        }
+      );
+    } catch (eventError) {
+      console.error(
+        'Falha ao registrar evento Sunize:',
+        eventError.message
+      );
+    }
+
     return json({
       ok: true,
       status: transition.target,
