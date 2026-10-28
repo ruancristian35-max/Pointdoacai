@@ -464,7 +464,8 @@ async function checkout(request, env) {
       throw Error('Resposta de cobrança inesperada.');
     }
 
-    // Confirmar vinculo da cobrança no Supabase.
+   
+    // Atualiza apenas pedidos que ainda estejam criando o Pix.
     const saved = await dbCall(
       env,
       `orders?id=eq.${encodeURIComponent(order.id)}&status=eq.creating_payment`,
@@ -477,16 +478,34 @@ async function checkout(request, env) {
       }
     );
 
-    if (
-      !Array.isArray(saved) ||
+    if (!Array.isArray(saved)) {
+      throw Error('Resposta inesperada do banco.');
+    }
+
+    if (saved.length === 0) {
+      // O webhook pode ter atualizado o pedido primeiro.
+      const current = await dbCall(
+        env,
+        `orders?id=eq.${encodeURIComponent(order.id)}` +
+        '&select=status,provider_payment_id'
+      );
+
+      if (
+        !Array.isArray(current) ||
+        current.length !== 1 ||
+        current[0].provider_payment_id !== payment.id ||
+        !['paid', 'awaiting_payment'].includes(current[0].status)
+      ) {
+        throw Error('Vínculo da cobrança não confirmado.');
+      }
+    } else if (
       saved.length !== 1 ||
       saved[0].provider_payment_id !== payment.id ||
       saved[0].status !== 'awaiting_payment'
     ) {
-      throw Error(
-        'Não foi possível confirmar o vínculo da cobrança no banco.'
-      );
+      throw Error('Vínculo da cobrança inconsistente.');
     }
+
 
     return json({
       orderId: order.id,
