@@ -535,6 +535,7 @@ function safeEqual(a, b) {
   return diff === 0;
 }
 
+
 async function webhook(request, env) {
   if (request.method !== 'POST') {
     return json({ error: 'Método não permitido' }, 405);
@@ -560,14 +561,17 @@ async function webhook(request, env) {
     }
 
     hook = JSON.parse(raw);
-
   } catch {
     return json({ error: 'Evento inválido' }, 400);
   }
 
   if (
     typeof hook?.id !== 'string' ||
-    typeof hook?.external_id !== 'string'
+    !/^[\w-]{1,120}$/.test(hook.id) ||
+    typeof hook?.external_id !== 'string' ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      hook.external_id
+    )
   ) {
     return json({ error: 'Evento incompleto' }, 400);
   }
@@ -576,61 +580,100 @@ async function webhook(request, env) {
     const rows = await dbCall(
       env,
       `orders?id=eq.${encodeURIComponent(hook.external_id)}` +
-      `&provider_payment_id=eq.${encodeURIComponent(hook.id)}` +
-      '&select=id,total_cents,status'
+        '&select=id,total_cents,status,provider_payment_id'
     );
 
     if (!Array.isArray(rows) || rows.length !== 1) {
-      return json({ error: 'Transação não associada' }, 404);
+      return json({ error: 'Pedido não encontrado' }, 404);
     }
 
     const order = rows[0];
+
+    // Confirma diretamente com a Sunize.
     const verified = await sunizeGet(env, hook.id);
 
     if (
       verified.id !== hook.id ||
       verified.external_id !== order.id ||
       verified.payment_method !== 'PIX' ||
-      Math.round(Number(verified.amount) * 100) !== order.total_cents
+      !Number.isFinite(Number(verified.amount)) ||
+      Math.round(Number(verified.amount) * 100) !==
+        order.total_cents
     ) {
       return json({ error: 'Dados divergentes' }, 409);
+    }
+
+    // Impede associar outra transação ao mesmo pedido.
+    if (
+      order.provider_payment_id &&
+      order.provider_payment_id !== hook.id
+    ) {
+      return json({
+        error: 'Outra transação já vinculada'
+      }, 409);
+    }
+
+    const missingLink = !order.provider_payment_id;
+
+    // Só recupera a associação de pedidos que
+    // estavam criando a cobrança.
+    if (
+      missingLink &&
+      order.status !== 'creating_payment'
+    ) {
+      return json({
+        error: 'Associação pendente de revisão'
+      }, 409);
     }
 
     const transitions = {
       AUTHORIZED: {
         target: 'paid',
-        from: ['awaiting_payment']
+        from: ['awaiting_payment', 'creating_payment']
       },
+
       FAILED: {
         target: 'failed',
         from: ['awaiting_payment', 'creating_payment']
       },
+
       REFUNDED: {
         target: 'refunded',
         from: ['paid', 'in_dispute', 'awaiting_payment']
       },
+
       CHARGEBACK: {
         target: 'chargeback',
         from: ['paid', 'in_dispute', 'awaiting_payment']
       },
+
       IN_DISPUTE: {
         target: 'in_dispute',
         from: ['paid']
       }
     };
 
-    if (verified.status === 'PENDING') {
-      return json({ ok: true, status: 'pending' });
-    }
-
-    const transition = transitions[verified.status];
+    const transition =
+      verified.status === 'PENDING'
+        ? {
+            target: 'awaiting_payment',
+            from: ['creating_payment']
+          }
+        : transitions[verified.status];
 
     if (!transition) {
       return json({ error: 'Status desconhecido' }, 422);
     }
 
-    if (order.status === transition.target) {
-      return json({ ok: true, duplicate: true });
+    if (
+      !missingLink &&
+      order.status === transition.target
+    ) {
+      return json({
+        ok: true,
+        duplicate: true,
+        status: order.status
+      });
     }
 
     if (!transition.from.includes(order.status)) {
@@ -639,25 +682,45 @@ async function webhook(request, env) {
       }, 409);
     }
 
+    const filter =
+      `orders?id=eq.${encodeURIComponent(order.id)}` +
+      `&status=eq.${encodeURIComponent(order.status)}` +
+      (
+        missingLink
+          ? '&provider_payment_id=is.null'
+          : `&provider_payment_id=eq.${encodeURIComponent(hook.id)}`
+      );
+
+    const body = {
+      status: transition.target
+    };
+
+    if (missingLink) {
+      body.provider_payment_id = hook.id;
+    }
+
     const updated = await dbCall(
       env,
-      `orders?id=eq.${encodeURIComponent(order.id)}` +
-      `&status=eq.${encodeURIComponent(order.status)}`,
+      filter,
       {
         method: 'PATCH',
-        body: { status: transition.target }
+        body
       }
     );
 
-    if (!Array.isArray(updated) || updated.length !== 1) {
+    if (
+      !Array.isArray(updated) ||
+      updated.length !== 1
+    ) {
       return json({
-        error: 'Estado mudou; tente novamente'
+        error: 'Estado alterado; consulte o pedido'
       }, 409);
     }
 
     return json({
       ok: true,
-      status: transition.target
+      status: transition.target,
+      recovered: missingLink
     });
 
   } catch (error) {
