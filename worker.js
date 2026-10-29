@@ -961,7 +961,8 @@ async function listarPedidosAdmin(request, env) {
 
     const pedidos = await dbCall(
       env,
-      'orders?select=id,customer_name,customer_phone,delivery_address,items,total_cents,payment_method,status,fulfillment_status&order=id.desc&limit=100'
+      
+'orders?select=id,created_at,customer_name,customer_phone,delivery_address,items,total_cents,payment_method,status,fulfillment_status&order=created_at.desc&limit=100'
     );
 
     if (!Array.isArray(pedidos)) {
