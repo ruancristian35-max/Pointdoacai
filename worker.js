@@ -1,6 +1,7 @@
 
  // Point do Acai - Cloudflare Worker + Supabase + Sunize API v2
-// Pagamentos reais DESATIVADOS por padrao: SUNIZE_PAYMENTS_ENABLED === 'true'
+// Pagamentos reais DESATIVADOS por padrao:
+// SUNIZE_PAYMENTS_ENABLED === 'true'
 
 const catalog = {
   'Açaí Tradicional': 1090,
@@ -26,14 +27,19 @@ const DELIVERY_FEE_CENTS = 0;
 function json(value, status = 200) {
   return Response.json(value, {
     status,
-    headers: { 'Cache-Control': 'no-store' }
+    headers: {
+      'Cache-Control': 'no-store'
+    }
   });
 }
 
 function checkCpf(value) {
   const cpf = String(value || '').replace(/\D/g, '');
 
-  if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) {
+  if (
+    cpf.length !== 11 ||
+    /^(\d)\1{10}$/.test(cpf)
+  ) {
     return null;
   }
 
@@ -46,7 +52,9 @@ function checkCpf(value) {
 
     const digit = (sum * 10) % 11 % 10;
 
-    if (digit !== Number(cpf[i])) return null;
+    if (digit !== Number(cpf[i])) {
+      return null;
+    }
   }
 
   return cpf;
@@ -66,7 +74,9 @@ function validate(body) {
     c.delivery !== 'Entrega' ||
     c.payment !== 'Pix'
   ) {
-    throw Error('Revise os dados do cliente e escolha Pix.');
+    throw Error(
+      'Revise os dados do cliente e escolha Pix.'
+    );
   }
 
   const phone = c.phone.replace(/\D/g, '');
@@ -78,7 +88,9 @@ function validate(body) {
       : phone;
 
   if (!/^\d{10,11}$/.test(national)) {
-    throw Error('WhatsApp inválido (inclua DDD).');
+    throw Error(
+      'WhatsApp inválido (inclua DDD).'
+    );
   }
 
   if (
@@ -91,7 +103,9 @@ function validate(body) {
 
   const cpf = checkCpf(c.cpf);
 
-  if (!cpf) throw Error('Informe um CPF válido.');
+  if (!cpf) {
+    throw Error('Informe um CPF válido.');
+  }
 
   if (
     typeof c.address !== 'string' ||
@@ -121,14 +135,21 @@ function validate(body) {
       !Array.isArray(item.extras) ||
       item.extras.length > 6 ||
       new Set(item.extras).size !== item.extras.length ||
-      item.extras.some(e => !Object.hasOwn(extras, e))
+      item.extras.some(
+        e => !Object.hasOwn(extras, e)
+      )
     ) {
-      throw Error('Produto ou adicional inválido.');
+      throw Error(
+        'Produto ou adicional inválido.'
+      );
     }
 
     const price =
       catalog[item.name] +
-      item.extras.reduce((a, e) => a + extras[e], 0);
+      item.extras.reduce(
+        (a, e) => a + extras[e],
+        0
+      );
 
     total += price * item.qty;
 
@@ -141,7 +162,9 @@ function validate(body) {
   });
 
   if (total <= 0 || total > 2000000) {
-    throw Error('Valor do pedido inválido.');
+    throw Error(
+      'Valor do pedido inválido.'
+    );
   }
 
   const order = {
@@ -168,10 +191,14 @@ function validate(body) {
   };
 }
 
-function dbHeaders(env, prefer = 'return=representation') {
+function dbHeaders(
+  env,
+  prefer = 'return=representation'
+) {
   return {
     apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-    Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+    Authorization:
+      `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
     'Content-Type': 'application/json',
     Prefer: prefer
   };
@@ -181,24 +208,41 @@ function dbUrl(env, suffix) {
   if (
     !env.SUPABASE_URL ||
     !env.SUPABASE_SERVICE_ROLE_KEY ||
-    !/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(env.SUPABASE_URL)
+    !/^https:\/\/[a-z0-9-]+\.supabase\.co\/?$/.test(
+      env.SUPABASE_URL
+    )
   ) {
     throw Error('Banco não configurado.');
   }
 
-  return `${env.SUPABASE_URL.replace(/\/$/, '')}/rest/v1/${suffix}`;
+  return (
+    env.SUPABASE_URL.replace(/\/$/, '') +
+    '/rest/v1/' +
+    suffix
+  );
 }
 
 async function dbCall(env, suffix, opts = {}) {
-  const r = await fetch(dbUrl(env, suffix), {
-    method: opts.method || 'GET',
-    headers: dbHeaders(env, opts.prefer),
-    body: opts.body ? JSON.stringify(opts.body) : undefined
-  });
+  const r = await fetch(
+    dbUrl(env, suffix),
+    {
+      method: opts.method || 'GET',
+      headers: dbHeaders(env, opts.prefer),
+      body: opts.body
+        ? JSON.stringify(opts.body)
+        : undefined
+    }
+  );
 
   if (!r.ok) {
-    console.error('Supabase status:', r.status);
-    throw Error('Erro ao acessar banco.');
+    console.error(
+      'Supabase status:',
+      r.status
+    );
+
+    throw Error(
+      'Erro ao acessar banco.'
+    );
   }
 
   return opts.prefer === 'return=minimal'
@@ -207,8 +251,13 @@ async function dbCall(env, suffix, opts = {}) {
 }
 
 function sunizeHeaders(env) {
-  if (!env.SUNIZE_API_KEY || !env.SUNIZE_API_SECRET) {
-    throw Error('Sunize não configurada.');
+  if (
+    !env.SUNIZE_API_KEY ||
+    !env.SUNIZE_API_SECRET
+  ) {
+    throw Error(
+      'Sunize não configurada.'
+    );
   }
 
   return {
@@ -228,12 +277,20 @@ async function sunizeGet(env, id) {
 
   const r = await fetch(
     `${SUNIZE_URL}/${encodeURIComponent(id)}`,
-    { headers: sunizeHeaders(env) }
+    {
+      headers: sunizeHeaders(env)
+    }
   );
 
   if (!r.ok) {
-    console.error('Consulta Sunize status:', r.status);
-    throw Error('Falha na consulta da Sunize.');
+    console.error(
+      'Consulta Sunize status:',
+      r.status
+    );
+
+    throw Error(
+      'Falha na consulta da Sunize.'
+    );
   }
 
   return r.json();
@@ -241,14 +298,20 @@ async function sunizeGet(env, id) {
 
 async function checkout(request, env) {
   if (request.method !== 'POST') {
-    return json({ error: 'Método não permitido.' }, 405);
+    return json(
+      { error: 'Método não permitido.' },
+      405
+    );
   }
 
   if (
     !request.headers.get('content-type')
       ?.includes('application/json')
   ) {
-    return json({ error: 'Envie JSON.' }, 415);
+    return json(
+      { error: 'Envie JSON.' },
+      415
+    );
   }
 
   let data;
@@ -257,7 +320,10 @@ async function checkout(request, env) {
     const raw = await request.text();
 
     if (raw.length > 16000) {
-      return json({ error: 'Pedido muito grande.' }, 413);
+      return json(
+        { error: 'Pedido muito grande.' },
+        413
+      );
     }
 
     const input = JSON.parse(raw);
@@ -269,7 +335,8 @@ async function checkout(request, env) {
       )
     ) {
       return json({
-        error: 'Atualize a página: identificador do pedido ausente ou inválido.'
+        error:
+          'Atualize a página: identificador do pedido ausente ou inválido.'
       }, 400);
     }
 
@@ -288,52 +355,74 @@ async function checkout(request, env) {
 
   const filter =
     'orders?checkout_request_id=eq.' +
-    encodeURIComponent(order.checkout_request_id) +
+    encodeURIComponent(
+      order.checkout_request_id
+    ) +
     '&select=id,customer_name,customer_phone,delivery_type,delivery_address,items,total_cents,payment_method,status';
 
   const sameOrder = existing => {
     if (
       !existing ||
-      existing.customer_name !== order.customer_name ||
-      existing.customer_phone !== order.customer_phone ||
-      existing.delivery_type !== order.delivery_type ||
-      (existing.delivery_address ?? null) !== order.delivery_address ||
-      existing.total_cents !== order.total_cents ||
+      existing.customer_name !==
+        order.customer_name ||
+      existing.customer_phone !==
+        order.customer_phone ||
+      existing.delivery_type !==
+        order.delivery_type ||
+      (existing.delivery_address ?? null) !==
+        order.delivery_address ||
+      existing.total_cents !==
+        order.total_cents ||
       existing.payment_method !== 'Pix' ||
       !Array.isArray(existing.items) ||
-      existing.items.length !== order.items.length
+      existing.items.length !==
+        order.items.length
     ) {
       return false;
     }
 
-    return existing.items.every((a, i) => {
-      const b = order.items[i];
+    return existing.items.every(
+      (a, i) => {
+        const b = order.items[i];
 
-      return (
-        a.name === b.name &&
-        a.qty === b.qty &&
-        a.unit_price_cents === b.unit_price_cents &&
-        Array.isArray(a.extras) &&
-        a.extras.length === b.extras.length &&
-        a.extras.every((v, j) => v === b.extras[j])
-      );
-    });
+        return (
+          a.name === b.name &&
+          a.qty === b.qty &&
+          a.unit_price_cents ===
+            b.unit_price_cents &&
+          Array.isArray(a.extras) &&
+          a.extras.length ===
+            b.extras.length &&
+          a.extras.every(
+            (v, j) => v === b.extras[j]
+          )
+        );
+      }
+    );
   };
 
   async function existingReceipt() {
-    const rows = await dbCall(env, filter);
+    const rows = await dbCall(
+      env,
+      filter
+    );
 
     if (!Array.isArray(rows)) {
-      throw Error('Resposta inesperada do banco.');
+      throw Error(
+        'Resposta inesperada do banco.'
+      );
     }
 
-    if (!rows.length) return null;
+    if (!rows.length) {
+      return null;
+    }
 
     const old = rows[0];
 
     if (!sameOrder(old, order)) {
       return json({
-        error: 'Esta tentativa ja pertence a um pedido diferente. Confira o pedido anterior antes de iniciar outro.'
+        error:
+          'Esta tentativa ja pertence a um pedido diferente. Confira o pedido anterior antes de iniciar outro.'
       }, 409);
     }
 
@@ -343,21 +432,26 @@ async function checkout(request, env) {
     ) {
       return json({
         orderId: old.id,
-        error: 'Pedido ja existente. Consulte o status do pedido antes de tentar novamente.'
+        error:
+          'Pedido ja existente. Consulte o status do pedido antes de tentar novamente.'
       }, 409);
     }
 
     return json({
       orderId: old.id,
       status: 'pending_payment',
-      message: 'Pedido de teste ja registrado. Nenhum novo pedido foi criado e o Pix continua desativado.'
+      message:
+        'Pedido de teste ja registrado. Nenhum novo pedido foi criado e o Pix continua desativado.'
     }, 200);
   }
 
   try {
-    const previous = await existingReceipt();
+    const previous =
+      await existingReceipt();
 
-    if (previous) return previous;
+    if (previous) {
+      return previous;
+    }
 
   } catch (e) {
     console.error(
@@ -366,22 +460,30 @@ async function checkout(request, env) {
     );
 
     return json({
-      error: 'Nao foi possivel confirmar a tentativa anterior. Nenhum novo pedido foi criado.'
+      error:
+        'Nao foi possivel confirmar a tentativa anterior. Nenhum novo pedido foi criado.'
     }, 503);
   }
 
   try {
-    await dbCall(env, 'orders', {
-      method: 'POST',
-      body: order,
-      prefer: 'return=minimal'
-    });
+    await dbCall(
+      env,
+      'orders',
+      {
+        method: 'POST',
+        body: order,
+        prefer: 'return=minimal'
+      }
+    );
 
   } catch (e) {
     try {
-      const previous = await existingReceipt();
+      const previous =
+        await existingReceipt();
 
-      if (previous) return previous;
+      if (previous) {
+        return previous;
+      }
 
     } catch (readError) {
       console.error(
@@ -391,16 +493,21 @@ async function checkout(request, env) {
     }
 
     return json({
-      error: 'Nao foi possivel confirmar o registro. Verifique o pedido antes de tentar novamente.'
+      error:
+        'Nao foi possivel confirmar o registro. Verifique o pedido antes de tentar novamente.'
     }, 503);
   }
 
-  // Pix real desativado até validação.
-  if (env.SUNIZE_PAYMENTS_ENABLED !== 'true') {
+  // Pix real permanece desativado
+  // ate a validacao completa.
+  if (
+    env.SUNIZE_PAYMENTS_ENABLED !== 'true'
+  ) {
     return json({
       orderId: order.id,
       status: 'pending_payment',
-      message: 'Pedido registrado para teste. Pix ainda desativado: não realize pagamento.'
+      message:
+        'Pedido registrado para teste. Pix ainda desativado: não realize pagamento.'
     }, 201);
   }
 
@@ -410,7 +517,9 @@ async function checkout(request, env) {
       `orders?id=eq.${encodeURIComponent(order.id)}&status=eq.pending_payment`,
       {
         method: 'PATCH',
-        body: { status: 'creating_payment' }
+        body: {
+          status: 'creating_payment'
+        }
       }
     );
 
@@ -418,7 +527,9 @@ async function checkout(request, env) {
       !Array.isArray(updated) ||
       updated.length !== 1
     ) {
-      throw Error('Estado de pedido inválido.');
+      throw Error(
+        'Estado de pedido inválido.'
+      );
     }
 
     const payload = {
@@ -426,30 +537,47 @@ async function checkout(request, env) {
       amount: order.total_cents / 100,
       payment_method: 'PIX',
 
-      items: order.items.map((it, n) => ({
-        id: String(n + 1),
-        title: it.name,
-        description: it.extras.length
-          ? it.extras.join(', ')
-          : 'Sem adicionais',
-        price: it.unit_price_cents / 100,
-        quantity: it.qty,
-        is_physical: true
-      })),
+      items: order.items.map(
+        (it, n) => ({
+          id: String(n + 1),
+          title: it.name,
+          description:
+            it.extras.length
+              ? it.extras.join(', ')
+              : 'Sem adicionais',
+          price:
+            it.unit_price_cents / 100,
+          quantity: it.qty,
+          is_physical: true
+        })
+      ),
 
-      ip: request.headers.get('CF-Connecting-IP') || undefined,
+      ip:
+        request.headers.get(
+          'CF-Connecting-IP'
+        ) || undefined,
+
       customer
     };
 
-    const r = await fetch(SUNIZE_URL, {
-      method: 'POST',
-      headers: sunizeHeaders(env),
-      body: JSON.stringify(payload)
-    });
+    const r = await fetch(
+      SUNIZE_URL,
+      {
+        method: 'POST',
+        headers: sunizeHeaders(env),
+        body: JSON.stringify(payload)
+      }
+    );
 
     if (!r.ok) {
-      console.error('Criar Sunize status:', r.status);
-      throw Error('Sunize recusou criar cobrança.');
+      console.error(
+        'Criar Sunize status:',
+        r.status
+      );
+
+      throw Error(
+        'Sunize recusou criar cobrança.'
+      );
     }
 
     const payment = await r.json();
@@ -459,12 +587,17 @@ async function checkout(request, env) {
       !payment?.pix?.payload ||
       payment.external_id !== order.id ||
       payment.payment_method !== 'PIX' ||
-      Math.round(Number(payment.amount) * 100) !== order.total_cents
+      Math.round(
+        Number(payment.amount) * 100
+      ) !== order.total_cents
     ) {
-      throw Error('Resposta de cobrança inesperada.');
+      throw Error(
+        'Resposta de cobrança inesperada.'
+      );
     }
 
-    // Atualiza apenas pedidos que ainda estejam criando o Pix.
+    // Atualiza somente pedidos
+    // que ainda estao criando o Pix.
     const saved = await dbCall(
       env,
       `orders?id=eq.${encodeURIComponent(order.id)}&status=eq.creating_payment`,
@@ -472,17 +605,21 @@ async function checkout(request, env) {
         method: 'PATCH',
         body: {
           status: 'awaiting_payment',
-          provider_payment_id: payment.id
+          provider_payment_id:
+            payment.id
         }
       }
     );
 
     if (!Array.isArray(saved)) {
-      throw Error('Resposta inesperada do banco.');
+      throw Error(
+        'Resposta inesperada do banco.'
+      );
     }
 
     if (saved.length === 0) {
-      // O webhook pode ter atualizado o pedido primeiro.
+      // O webhook pode ter
+      // atualizado primeiro.
       const current = await dbCall(
         env,
         `orders?id=eq.${encodeURIComponent(order.id)}` +
@@ -492,24 +629,37 @@ async function checkout(request, env) {
       if (
         !Array.isArray(current) ||
         current.length !== 1 ||
-        current[0].provider_payment_id !== payment.id ||
-        !['paid', 'awaiting_payment'].includes(current[0].status)
+        current[0].provider_payment_id !==
+          payment.id ||
+        ![
+          'paid',
+          'awaiting_payment'
+        ].includes(current[0].status)
       ) {
-        throw Error('Vínculo da cobrança não confirmado.');
+        throw Error(
+          'Vínculo da cobrança não confirmado.'
+        );
       }
+
     } else if (
       saved.length !== 1 ||
-      saved[0].provider_payment_id !== payment.id ||
-      saved[0].status !== 'awaiting_payment'
+      saved[0].provider_payment_id !==
+        payment.id ||
+      saved[0].status !==
+        'awaiting_payment'
     ) {
-      throw Error('Vínculo da cobrança inconsistente.');
+      throw Error(
+        'Vínculo da cobrança inconsistente.'
+      );
     }
 
     return json({
       orderId: order.id,
       status: 'awaiting_payment',
-      pixPayload: payment.pix.payload,
-      amount: order.total_cents / 100
+      pixPayload:
+        payment.pix.payload,
+      amount:
+        order.total_cents / 100
     }, 201);
 
   } catch (err) {
@@ -518,12 +668,14 @@ async function checkout(request, env) {
       err.message
     );
 
-    // Não repetir automaticamente:
-    // talvez a Sunize tenha criado a cobrança.
+    // Evita nova tentativa automatica,
+    // pois a Sunize pode ter criado
+    // uma cobranca.
     return json({
       orderId: order.id,
       status: 'creating_payment',
-      error: 'Não foi possível disponibilizar o Pix. Não tente pagar ou criar outro pedido até verificar o status.'
+      error:
+        'Não foi possível disponibilizar o Pix. Não tente pagar ou criar outro pedido até verificar o status.'
     }, 503);
   }
 }
@@ -536,17 +688,26 @@ function safeEqual(a, b) {
     return false;
   }
 
-  const aa = new TextEncoder().encode(a);
-  const bb = new TextEncoder().encode(b);
+  const aa =
+    new TextEncoder().encode(a);
 
-  let diff = aa.length ^ bb.length;
+  const bb =
+    new TextEncoder().encode(b);
+
+  let diff =
+    aa.length ^ bb.length;
 
   for (
     let i = 0;
-    i < Math.max(aa.length, bb.length);
+    i < Math.max(
+      aa.length,
+      bb.length
+    );
     i++
   ) {
-    diff |= (aa[i] || 0) ^ (bb[i] || 0);
+    diff |=
+      (aa[i] || 0) ^
+      (bb[i] || 0);
   }
 
   return diff === 0;
@@ -554,113 +715,164 @@ function safeEqual(a, b) {
 
 async function webhook(request, env) {
   if (request.method !== 'POST') {
-    return json({ error: 'Método não permitido' }, 405);
+    return json({
+      error: 'Método não permitido'
+    }, 405);
   }
 
   if (
     !env.SUNIZE_API_SECRET ||
     !safeEqual(
-      request.headers.get('x-api-secret'),
+      request.headers.get(
+        'x-api-secret'
+      ),
       env.SUNIZE_API_SECRET
     )
   ) {
-    return json({ error: 'Não autorizado' }, 401);
+    return json({
+      error: 'Não autorizado'
+    }, 401);
   }
 
   let hook;
 
   try {
-    const raw = await request.text();
+    const raw =
+      await request.text();
 
     if (raw.length > 16000) {
-      return json({ error: 'Evento muito grande' }, 413);
+      return json({
+        error: 'Evento muito grande'
+      }, 413);
     }
 
     hook = JSON.parse(raw);
+
   } catch {
-    return json({ error: 'Evento inválido' }, 400);
+    return json({
+      error: 'Evento inválido'
+    }, 400);
   }
 
   if (
     typeof hook?.id !== 'string' ||
-    !/^[\w-]{1,120}$/.test(hook.id) ||
-    typeof hook?.external_id !== 'string' ||
+    !/^[\w-]{1,120}$/.test(
+      hook.id
+    ) ||
+    typeof hook?.external_id !==
+      'string' ||
     !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
       hook.external_id
     )
   ) {
-    return json({ error: 'Evento incompleto' }, 400);
+    return json({
+      error: 'Evento incompleto'
+    }, 400);
   }
 
   try {
     const rows = await dbCall(
       env,
       `orders?id=eq.${encodeURIComponent(hook.external_id)}` +
-        '&select=id,total_cents,status,provider_payment_id'
+      '&select=id,total_cents,status,provider_payment_id'
     );
 
-    if (!Array.isArray(rows) || rows.length !== 1) {
-      return json({ error: 'Pedido não encontrado' }, 404);
+    if (
+      !Array.isArray(rows) ||
+      rows.length !== 1
+    ) {
+      return json({
+        error:
+          'Pedido não encontrado'
+      }, 404);
     }
 
     const order = rows[0];
 
-    // Confirma diretamente com a Sunize.
-    const verified = await sunizeGet(env, hook.id);
+    // Consulta a transacao
+    // diretamente na Sunize.
+    const verified =
+      await sunizeGet(
+        env,
+        hook.id
+      );
 
     if (
       verified.id !== hook.id ||
       verified.external_id !== order.id ||
       verified.payment_method !== 'PIX' ||
-      !Number.isFinite(Number(verified.amount)) ||
-      Math.round(Number(verified.amount) * 100) !==
-        order.total_cents
-    ) {
-      return json({ error: 'Dados divergentes' }, 409);
-    }
-
-    // Impede associar outra transação ao mesmo pedido.
-    if (
-      order.provider_payment_id &&
-      order.provider_payment_id !== hook.id
+      !Number.isFinite(
+        Number(verified.amount)
+      ) ||
+      Math.round(
+        Number(verified.amount) * 100
+      ) !== order.total_cents
     ) {
       return json({
-        error: 'Outra transação já vinculada'
+        error: 'Dados divergentes'
       }, 409);
     }
 
-    const missingLink = !order.provider_payment_id;
-
-    // Só recupera a associação de pedidos que
-    // estavam criando a cobrança.
+    // Impede vincular outra
+    // transacao ao mesmo pedido.
     if (
-      missingLink &&
-      order.status !== 'creating_payment'
+      order.provider_payment_id &&
+      order.provider_payment_id !==
+        hook.id
     ) {
       return json({
-        error: 'Associação pendente de revisão'
+        error:
+          'Outra transação já vinculada'
+      }, 409);
+    }
+
+    const missingLink =
+      !order.provider_payment_id;
+
+    if (
+      missingLink &&
+      order.status !==
+        'creating_payment'
+    ) {
+      return json({
+        error:
+          'Associação pendente de revisão'
       }, 409);
     }
 
     const transitions = {
       AUTHORIZED: {
         target: 'paid',
-        from: ['awaiting_payment', 'creating_payment']
+        from: [
+          'awaiting_payment',
+          'creating_payment'
+        ]
       },
 
       FAILED: {
         target: 'failed',
-        from: ['awaiting_payment', 'creating_payment']
+        from: [
+          'awaiting_payment',
+          'creating_payment'
+        ]
       },
 
       REFUNDED: {
         target: 'refunded',
-        from: ['paid', 'in_dispute', 'awaiting_payment']
+        from: [
+          'paid',
+          'in_dispute',
+          'awaiting_payment'
+        ]
       },
 
       CHARGEBACK: {
         target: 'chargeback',
-        from: ['paid', 'in_dispute', 'awaiting_payment']
+        from: [
+          'paid',
+          'in_dispute',
+          'awaiting_payment'
+        ]
       },
 
       IN_DISPUTE: {
@@ -672,19 +884,63 @@ async function webhook(request, env) {
     const transition =
       verified.status === 'PENDING'
         ? {
-            target: 'awaiting_payment',
-            from: ['creating_payment']
+            target:
+              'awaiting_payment',
+            from: [
+              'creating_payment'
+            ]
           }
-        : transitions[verified.status];
+        : transitions[
+            verified.status
+          ];
 
     if (!transition) {
-      return json({ error: 'Status desconhecido' }, 422);
+      return json({
+        error:
+          'Status desconhecido'
+      }, 422);
     }
 
+    // Se o pedido ja esta
+    // no estado confirmado,
+    // tenta recuperar um evento
+    // que nao tenha sido gravado.
     if (
       !missingLink &&
-      order.status === transition.target
+      order.status ===
+        transition.target
     ) {
+      try {
+        await dbCall(
+          env,
+          'payment_events?on_conflict=provider,provider_event_id',
+          {
+            method: 'POST',
+            prefer:
+              'resolution=ignore-duplicates,return=minimal',
+            body: {
+              provider: 'sunize',
+              provider_event_id:
+                `${hook.id}:${verified.status}`,
+              order_id: order.id,
+              event_type:
+                verified.status
+            }
+          }
+        );
+
+      } catch (eventError) {
+        console.error(
+          'Falha ao recuperar histórico Sunize:',
+          eventError.message
+        );
+
+        return json({
+          error:
+            'Histórico do pagamento ainda não registrado.'
+        }, 503);
+      }
+
       return json({
         ok: true,
         duplicate: true,
@@ -692,9 +948,14 @@ async function webhook(request, env) {
       });
     }
 
-    if (!transition.from.includes(order.status)) {
+    if (
+      !transition.from.includes(
+        order.status
+      )
+    ) {
       return json({
-        error: 'Revisão de status necessária'
+        error:
+          'Revisão de status necessária'
       }, 409);
     }
 
@@ -712,45 +973,51 @@ async function webhook(request, env) {
     };
 
     if (missingLink) {
-      body.provider_payment_id = hook.id;
+      body.provider_payment_id =
+        hook.id;
     }
 
-    const updated = await dbCall(
-      env,
-      filter,
-      {
-        method: 'PATCH',
-        body
-      }
-    );
+    const updated =
+      await dbCall(
+        env,
+        filter,
+        {
+          method: 'PATCH',
+          body
+        }
+      );
 
     if (
       !Array.isArray(updated) ||
       updated.length !== 1
     ) {
       return json({
-        error: 'Estado alterado; consulte o pedido'
+        error:
+          'Estado alterado; consulte o pedido'
       }, 409);
     }
 
-    // Registra o estado confirmado pela Sunize.
-    // O identificador combina transacao e status
-    // para evitar registros duplicados.
+    // Registra o estado confirmado
+    // pela Sunize.
     try {
       await dbCall(
         env,
         'payment_events?on_conflict=provider,provider_event_id',
         {
           method: 'POST',
-          prefer: 'resolution=ignore-duplicates,return=minimal',
+          prefer:
+            'resolution=ignore-duplicates,return=minimal',
           body: {
             provider: 'sunize',
-            provider_event_id: `${hook.id}:${verified.status}`,
+            provider_event_id:
+              `${hook.id}:${verified.status}`,
             order_id: order.id,
-            event_type: verified.status
+            event_type:
+              verified.status
           }
         }
       );
+
     } catch (eventError) {
       console.error(
         'Falha ao registrar evento Sunize:',
@@ -758,57 +1025,79 @@ async function webhook(request, env) {
       );
 
       return json({
-        error: 'Pagamento verificado, mas o histórico do evento não foi registrado. Revisão necessária.'
+        error:
+          'Pagamento verificado, mas o histórico do evento não foi registrado. Revisão necessária.'
       }, 503);
     }
 
     return json({
       ok: true,
-      status: transition.target,
-      recovered: missingLink
+      status:
+        transition.target,
+      recovered:
+        missingLink
     });
 
   } catch (error) {
-    console.error('Webhook falhou:', error.message);
+    console.error(
+      'Webhook falhou:',
+      error.message
+    );
 
     return json({
-      error: 'Falha na verificação'
+      error:
+        'Falha na verificação'
     }, 503);
   }
 }
 
-async function consultarStatusPedido(request, env) {
+async function consultarStatusPedido(
+  request,
+  env
+) {
   if (request.method !== 'GET') {
     return json({
-      error: 'Método não permitido'
+      error:
+        'Método não permitido'
     }, 405);
   }
 
-  const id = new URL(request.url).searchParams.get('id');
+  const id =
+    new URL(request.url)
+      .searchParams.get('id');
 
   if (
     !id ||
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      id
+    )
   ) {
     return json({
-      error: 'Pedido inválido'
+      error:
+        'Pedido inválido'
     }, 400);
   }
 
   try {
-    const rows = await dbCall(
-      env,
-      `orders?id=eq.${encodeURIComponent(id)}&select=status`
-    );
+    const rows =
+      await dbCall(
+        env,
+        `orders?id=eq.${encodeURIComponent(id)}&select=status`
+      );
 
-    if (!Array.isArray(rows) || rows.length !== 1) {
+    if (
+      !Array.isArray(rows) ||
+      rows.length !== 1
+    ) {
       return json({
-        error: 'Pedido não encontrado'
+        error:
+          'Pedido não encontrado'
       }, 404);
     }
 
     return json({
-      status: rows[0].status
+      status:
+        rows[0].status
     });
 
   } catch (error) {
@@ -818,40 +1107,65 @@ async function consultarStatusPedido(request, env) {
     );
 
     return json({
-      error: 'Não foi possível consultar o pedido'
+      error:
+        'Não foi possível consultar o pedido'
     }, 503);
   }
 }
 
 export default {
   async fetch(request, env) {
-    const path = new URL(request.url).pathname;
+    const path =
+      new URL(request.url).pathname;
 
-    if (path === '/api/teste') {
+    if (
+      path === '/api/teste'
+    ) {
       return json({
         sucesso: true,
-        mensagem: 'API Point do Açaí funcionando!'
+        mensagem:
+          'API Point do Açaí funcionando!'
       });
     }
 
-    if (path === '/api/checkout') {
-      return checkout(request, env);
+    if (
+      path === '/api/checkout'
+    ) {
+      return checkout(
+        request,
+        env
+      );
     }
 
-    if (path === '/api/status-pedido') {
-      return consultarStatusPedido(request, env);
+    if (
+      path === '/api/status-pedido'
+    ) {
+      return consultarStatusPedido(
+        request,
+        env
+      );
     }
 
-    if (path === '/api/webhook-sunize') {
-      return webhook(request, env);
+    if (
+      path === '/api/webhook-sunize'
+    ) {
+      return webhook(
+        request,
+        env
+      );
     }
 
-    if (path.startsWith('/api/')) {
+    if (
+      path.startsWith('/api/')
+    ) {
       return json({
-        error: 'API não configurada.'
+        error:
+          'API não configurada.'
       }, 404);
     }
 
-    return env.ASSETS.fetch(request);
+    return env.ASSETS.fetch(
+      request
+    );
   }
 };
