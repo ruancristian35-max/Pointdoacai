@@ -1082,7 +1082,7 @@ async function diagnosticarSunizeAdmin(request, env) {
         method: 'GET',
         headers: sunizeHeaders(env),
         cache: 'no-store',
-        redirect: 'error'
+        redirect: 'manual'
       }
     );
 
