@@ -278,7 +278,7 @@ async function checkout(request, env) {
 
     if (
       typeof input?.checkout_request_id !== 'string' ||
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{8}$/i.test(
         input.checkout_request_id
       )
     ) {
@@ -961,8 +961,7 @@ async function listarPedidosAdmin(request, env) {
 
     const pedidos = await dbCall(
       env,
-      
-'orders?select=id,created_at,customer_name,customer_phone,delivery_address,items,total_cents,payment_method,status,fulfillment_status&order=created_at.desc&limit=100'
+      'orders?select=id,created_at,customer_name,customer_phone,delivery_address,items,total_cents,payment_method,status,fulfillment_status&order=created_at.desc&limit=100'
     );
 
     if (!Array.isArray(pedidos)) {
@@ -1057,7 +1056,77 @@ async function atualizarEntregaAdmin(request, env) {
 }
 
 /* =====================================
-   PÁGINA DO PAINEL
+   DIAGNÓSTICO SUNIZE - SOMENTE ADMIN
+   Consulta de leitura, sem criar cobrança
+===================================== */
+
+async function diagnosticarSunizeAdmin(request, env) {
+  if (request.method !== 'GET') {
+    return json({ error: 'Método não permitido' }, 405);
+  }
+
+  try {
+    const admin = await verificarAdministrador(request, env);
+
+    if (!admin) {
+      return json({ error: 'Acesso não autorizado' }, 401);
+    }
+
+    // ID aleatório, não relacionado a pedidos reais.
+    // A requisição GET não cria cobrança.
+    const idInexistente = crypto.randomUUID();
+
+    const resposta = await fetch(
+      `${SUNIZE_URL}/${encodeURIComponent(idInexistente)}`,
+      {
+        method: 'GET',
+        headers: sunizeHeaders(env),
+        cache: 'no-store',
+        redirect: 'error'
+      }
+    );
+
+    // Não retornamos o corpo da resposta da Sunize
+    // nem qualquer chave secreta.
+    const status = resposta.status;
+
+    if (status === 401 || status === 403) {
+      return json({
+        http_status: status,
+        resultado: 'A Sunize recusou a requisição. Confira a credencial V2.'
+      });
+    }
+
+    if (status === 404) {
+      return json({
+        http_status: status,
+        resultado: 'Transação inexistente. Indício favorável, mas não garante que a criação do Pix funcionará.'
+      });
+    }
+
+    if (status === 200) {
+      return json({
+        http_status: status,
+        resultado: 'Resposta inesperada para um identificador aleatório. Revisão necessária.'
+      });
+    }
+
+    return json({
+      http_status: status,
+      resultado: 'A Sunize respondeu com outro status. A autenticação não pôde ser confirmada.'
+    });
+
+  } catch (error) {
+    console.error('Diagnóstico Sunize falhou:', error.message);
+
+    return json({
+      error: 'Não foi possível consultar a Sunize agora.'
+    }, 503);
+  }
+}
+
+/* =====================================
+   PÁGINA DO PAINEL ADMINISTRATIVO
 ===================================== */
 
 function paginaAdmin() {
@@ -1114,10 +1183,12 @@ ul{padding-left:22px}
 <h2>Pedidos</h2>
 <div>
 <button id="refresh" type="button">Atualizar</button>
+<button id="checkSunize" class="outline" type="button">Verificar Sunize (sem cobrança)</button>
 <button id="logout" class="outline" type="button">Sair</button>
 </div>
 </div>
 <p id="info" role="status"></p>
+<p id="sunizeInfo" role="status" class="muted"></p>
 <div id="orders" class="box"></div>
 </section>
 </main>
@@ -1228,10 +1299,34 @@ function logout() {
   $('panel').style.display = 'none';
   $('login').style.display = 'block';
   $('info').textContent = '';
+  $('sunizeInfo').textContent = '';
 }
 
 $('logout').addEventListener('click', logout);
 $('refresh').addEventListener('click', load);
+
+$('checkSunize').addEventListener('click', async () => {
+  const button = $('checkSunize');
+  button.disabled = true;
+
+  $('sunizeInfo').textContent =
+    'Consultando a Sunize, sem gerar cobrança...';
+
+  try {
+    const result = await api('/api/admin/diagnostico-sunize');
+
+    $('sunizeInfo').textContent =
+      'Resposta HTTP ' +
+      result.http_status +
+      ': ' +
+      result.resultado;
+
+  } catch (error) {
+    $('sunizeInfo').textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
 
 async function load() {
   $('info').textContent = 'Carregando...';
@@ -1409,6 +1504,10 @@ export default {
 
     if (path === '/api/admin/login') {
       return loginAdministrador(request, env);
+    }
+
+    if (path === '/api/admin/diagnostico-sunize') {
+      return diagnosticarSunizeAdmin(request, env);
     }
 
     if (path === '/api/admin/orders') {
