@@ -464,7 +464,6 @@ async function checkout(request, env) {
       throw Error('Resposta de cobrança inesperada.');
     }
 
-   
     // Atualiza apenas pedidos que ainda estejam criando o Pix.
     const saved = await dbCall(
       env,
@@ -505,7 +504,6 @@ async function checkout(request, env) {
     ) {
       throw Error('Vínculo da cobrança inconsistente.');
     }
-
 
     return json({
       orderId: order.id,
@@ -554,7 +552,6 @@ function safeEqual(a, b) {
   return diff === 0;
 }
 
-
 async function webhook(request, env) {
   if (request.method !== 'POST') {
     return json({ error: 'Método não permitido' }, 405);
@@ -584,7 +581,6 @@ async function webhook(request, env) {
     return json({ error: 'Evento inválido' }, 400);
   }
 
- 
   if (
     typeof hook?.id !== 'string' ||
     !/^[\w-]{1,120}$/.test(hook.id) ||
@@ -755,7 +751,7 @@ async function webhook(request, env) {
           }
         }
       );
-     } catch (eventError) {
+    } catch (eventError) {
       console.error(
         'Falha ao registrar evento Sunize:',
         eventError.message
@@ -764,12 +760,6 @@ async function webhook(request, env) {
       return json({
         error: 'Pagamento verificado, mas o histórico do evento não foi registrado. Revisão necessária.'
       }, 503);
-    }
-
-      console.error(
-        'Falha ao registrar evento Sunize:',
-        eventError.message
-      );
     }
 
     return json({
