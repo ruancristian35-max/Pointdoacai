@@ -755,7 +755,17 @@ async function webhook(request, env) {
           }
         }
       );
-    } catch (eventError) {
+     } catch (eventError) {
+      console.error(
+        'Falha ao registrar evento Sunize:',
+        eventError.message
+      );
+
+      return json({
+        error: 'Pagamento verificado, mas o histórico do evento não foi registrado. Revisão necessária.'
+      }, 503);
+    }
+
       console.error(
         'Falha ao registrar evento Sunize:',
         eventError.message
