@@ -1,4 +1,3 @@
-
 /*
  POINT DO AÇAÍ
  Cloudflare Worker + Supabase + Sunize V2
@@ -299,17 +298,101 @@ async function sunizeGet(env, id) {
   );
 
   if (!response.ok) {
+    const details = await sunizeReadSafeError(response);
     console.error(
-      'Consulta Sunize status:',
-      response.status
+      'Consulta Sunize rejeitada:',
+      JSON.stringify(details)
     );
 
-    throw Error(
-      'Falha na consulta da Sunize.'
-    );
+    throw Error('Falha na consulta da Sunize.');
   }
 
   return response.json();
+}
+
+/* =====================================
+   DIAGNÓSTICO SEGURO DA SUNIZE
+   Nunca registrar o corpo bruto da resposta:
+   ele pode conter CPF, e-mail, telefone ou Pix.
+===================================== */
+
+function sunizeErrorCategory(message) {
+  if (typeof message !== 'string') return 'nao_informada';
+
+  // Classifica o motivo sem publicar a mensagem original.
+  const checks = [
+    [/credencial|autentica|authentication|api.key|api.secret|header|cabe.alho/i, 'autenticacao'],
+    [/cpf|cnpj|documento|document/i, 'documento_comprador'],
+    [/telefone|phone|celular/i, 'telefone_comprador'],
+    [/e.mail|email/i, 'email_comprador'],
+    [/endere.o ip|\bip\b|internet protocol/i, 'ip_comprador'],
+    [/valor|amount|m.nimo|minimum|price|pre.o/i, 'valor'],
+    [/item|produto|quantity|quantidade/i, 'itens'],
+    [/external.id|identificador/i, 'identificador'],
+    [/bloque|restri|fraud|risco|risk|cancel|recebedor|destinat.rio/i, 'restricao_ou_cancelamento']
+  ];
+
+  for (const [pattern, category] of checks) {
+    if (pattern.test(message)) return category;
+  }
+
+  return 'outro_motivo';
+}
+
+function sunizeSafeErrorDetails(body, httpStatus) {
+  const details = {
+    http_status: httpStatus,
+    categoria: 'resposta_sem_detalhes'
+  };
+
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return details;
+  }
+
+  details.categoria = sunizeErrorCategory(body.error);
+
+  // Registra somente nomes de campos permitidos, nunca seus valores.
+  const allowedFields = new Set([
+    'external_id', 'amount', 'payment_method', 'items',
+    'items[].id', 'items[].title', 'items[].description',
+    'items[].price', 'items[].quantity', 'items[].is_physical',
+    'ip', 'customer', 'customer.name', 'customer.email',
+    'customer.phone', 'customer.document_type', 'customer.document'
+  ]);
+
+  if (Array.isArray(body.errorFields)) {
+    details.campos = [...new Set(
+      body.errorFields.slice(0, 12).map(field => {
+        if (typeof field !== 'string') return 'outro_campo';
+        const normalized = field.replace(/\[\d+\]/g, '[]');
+        return allowedFields.has(normalized) ? normalized : 'outro_campo';
+      })
+    )];
+  }
+
+  // Identificador criado pela Sunize, útil para o suporte.
+  if (
+    typeof body.requestId === 'string' &&
+    /^[A-Za-z0-9_-]{6,120}$/.test(body.requestId)
+  ) {
+    details.sunize_request_id = body.requestId;
+  }
+
+  return details;
+}
+
+async function sunizeReadSafeError(response) {
+  try {
+    const raw = await response.text();
+    // Nunca registrar raw. Somente uma resposta JSON conhecida é analisada.
+    const body = JSON.parse(raw.slice(0, 8192));
+    return sunizeSafeErrorDetails(body, response.status);
+  } catch {
+    return {
+      http_status: response.status,
+      categoria: 'resposta_sem_json_valido'
+    };
+  }
 }
 
 /* =====================================
@@ -590,14 +673,19 @@ async function checkout(request, env) {
     );
 
     if (!response.ok) {
+      const details = await sunizeReadSafeError(response);
+
       console.error(
-        'Criar Sunize status:',
-        response.status
+        'Criar Sunize rejeitado:',
+        JSON.stringify({
+          ...details,
+          ip_presente: Boolean(payload.ip)
+        })
       );
 
-      throw Error(
-        'Sunize recusou criar cobrança.'
-      );
+      // Não registrar CPF, telefone, e-mail, headers nem a resposta bruta.
+      // Não repetir automaticamente: pode existir uma transação cancelada.
+      throw Error('Sunize recusou criar cobrança.');
     }
 
     const payment =
