@@ -100,7 +100,6 @@ function AvisosPromocionais({ ocultar }) {
     </div>
   );
 }
-function App() {
 function AvisoLojaProxima() {
   // Exibido em toda nova abertura/recarregamento da página, sem geolocalização.
   const [visivel, setVisivel] = React.useState(true);
@@ -131,6 +130,7 @@ function AvisoLojaProxima() {
   );
 }
 
+function App() {
     const [cat, setCat] = useState('Todos'), [cart, setCart] = useState([]), [open, setOpen] = useState(false), [checkout, setCheckout] = useState(false), [selected, setSelected] = useState(null), [chosen, setChosen] = useState([]), [qty, setQty] = useState(1), [form, setForm] = useState({ name: '', phone: '', email: '', cpf: '', address: '', delivery: 'Entrega', payment: 'Pix' }), [notice, setNotice] = useState(''), [pix, setPix] = useState(null), [pixErro, setPixErro] = useState(''), [receipt, setReceipt] = useState(null), [submitting, setSubmitting] = useState(false), [blocked, setBlocked] = useState(false), [copied, setCopied] = useState(false), requestLock = useRef(false);
     const total = cart.reduce((a, i) => a + i.price * i.qty, 0), count = cart.reduce((a, i) => a + i.qty, 0);
     function add() { const price = selected.price + chosen.reduce((a, e) => a + e[1], 0); setCart(c => [...c, { key: Date.now() + Math.random(), name: selected.name, extras: chosen.map(e => e[0]), price, qty }]); setSelected(null); setChosen([]); setQty(1); setNotice('Produto adicionado ao carrinho!'); setTimeout(() => setNotice(''), 2500); }
