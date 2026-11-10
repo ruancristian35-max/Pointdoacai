@@ -185,3 +185,67 @@
     animation: none !important;
   }
 }
+
+/* POINT DO AÇAÍ — CARRINHO RESPONSIVO NO CELULAR
+   Apenas apresentação: não altera checkout, pedidos ou Pix. */
+@media (max-width: 760px) {
+  .overlay:has(> .drawer) {
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0;
+  }
+  .overlay > .drawer {
+    position: relative;
+    inset: auto;
+    margin: 0;
+    width: 100%;
+    height: auto;
+    max-height: 92vh;
+    max-height: 92dvh;
+    min-height: 0;
+    border-radius: 20px 20px 0 0;
+    overflow: hidden;
+    box-shadow: 0 -8px 36px rgba(30, 7, 42, .20);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .drawer-head {
+    flex: 0 0 auto;
+    padding: 14px 18px;
+  }
+  .drawer-head h2 {
+    font-size: 20px;
+    margin: 0;
+  }
+  .drawer-head button {
+    display: grid;
+    place-items: center;
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .drawer .cart-items {
+    flex: 0 1 auto;
+    min-height: 0;
+    padding: 8px 18px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .drawer .cart-item { padding: 12px 0; }
+  .drawer .empty { padding: 24px 10px; }
+  .drawer .drawer-bottom {
+    flex: 0 0 auto;
+    padding: 14px 18px 16px;
+    background: #fff;
+  }
+  .drawer .drawer-bottom > div { font-size: 16px; }
+  .drawer .drawer-bottom small { margin: 7px 0 12px; }
+  .drawer .checkout {
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 14px 18px 18px;
+  }
+  .drawer .checkout label { margin: 11px 0; }
+  .drawer .checkout .primary.wide,
+  .drawer .drawer-bottom .primary.wide { min-height: 48px; }
+}
